@@ -74,7 +74,7 @@ if __name__ == '__main__':
     parser.add_argument("--n_samples_per_curve", type=int, default=120)
     parser.add_argument("--chamfer", default=False, dest='chamfer', action='store_true')
     parser.add_argument("--simple_templates", default=False, dest='simple_templates', action='store_true')
-    parser.set_defaults(num_worker_threads=16, bs=32, lr=1e-4)
+    parser.set_defaults(num_worker_threads=16, bs=31, lr=1e-4)
     args = parser.parse_args()
     ttools.set_logger(args.debug)
     main(args)

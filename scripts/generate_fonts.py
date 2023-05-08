@@ -15,7 +15,7 @@ def process_letter(font_char):
     try:
         font, char = font_char
         name = "{}_{}".format(char, os.path.splitext(font)[0])
-        face = Face('data/fonts/ttfs/{}'.format(font))
+        face = Face(r'D:\DeepParametricShapes\data\fonts\ttfs\{}'.format(font))
         face.set_char_size(48*64)
         face.load_char(char)
         outline = face.glyph.outline
@@ -106,8 +106,8 @@ def process_letter(font_char):
         n_points = len(points)
         points = np.array(points, dtype=np.complex64).view(np.float32).reshape([-1, 2])
         np.random.shuffle(points)
-        np.save('data/fonts/points/{}.npy'.format(name), points)
-        print('data/fonts/points/{}.npy'.format(name))
+        np.save(r'D:\DeepParametricShapes\data\fonts\points\{}.npy'.format(name), points)
+        print(r'D:\DeepParametricShapes\data\fonts\points\{}.npy'.format(name))
 
         grid = np.mgrid[-0.25:1.25:128*1.5j, -0.25:1.25:128*1.5j].T[:,:,None,:]
         distances = np.empty((grid.shape[0], grid.shape[1]))
@@ -115,8 +115,8 @@ def process_letter(font_char):
             for j in range(grid.shape[0]):
                 distances[i,j] = np.amin(np.linalg.norm(grid[i,j]-points, axis=1))
         if not np.isnan(distances).any():
-            np.save('data/fonts/distances/{}.npy'.format(name), distances)
-            surface.write_to_png('data/fonts/pngs/{}.png'.format(name))
+            np.save(r'D:\DeepParametricShapes\data\fonts\distances\{}.npy'.format(name), distances)
+            surface.write_to_png(r'D:\DeepParametricShapes\data\fonts\pngs\{}.png'.format(name))
         else:
             return e
     except Exception as e:
@@ -125,10 +125,18 @@ def process_letter(font_char):
     return None
 
 
-fonts = [f for f in os.listdir('data/fonts/ttfs/') if f.endswith('.otf') or f.endswith('.ttf')]
+
+
+
+fonts = [f for f in os.listdir(r"D:\DeepParametricShapes\data\fonts\ttfs") if
+         f.endswith('.otf') or f.endswith('.ttf')]
 to_process = [(font, letter) for letter in string.ascii_uppercase for font in fonts]
 
 to_remove = []
-with Pool() as workers, tqdm(total=len(to_process)) as pbar:
-    for result in tqdm(workers.imap_unordered(process_letter, to_process)):
-        pbar.update()
+if __name__ == '__main__':
+    with Pool() as workers, tqdm(total=len(to_process)) as pbar:
+        for result in tqdm(workers.imap_unordered(process_letter, to_process)):
+            pbar.update()
+
+
+

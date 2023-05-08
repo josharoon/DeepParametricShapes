@@ -17,14 +17,14 @@ def main(args):
     model = CurvesModel(sum(templates.topology))
     model.to(device)
     model.eval()
-    checkpointer = ttools.Checkpointer(f'models/{args.model}', model)
+    checkpointer = ttools.Checkpointer(fr'D:\DeepParametricShapes\models\{args.model}', model)
     extras, _ = checkpointer.load_latest()
     if extras is not None:
         print(f"Loaded checkpoint (epoch {extras['epoch']})")
     else:
         print("Unable to load checkpoint")
 
-    im = to_tensor(Image.open(args.image).convert('L').resize((128, 128))).to(device)
+    im = to_tensor(Image.open(args.image).convert('L').resize((224, 224))).to(device)
     z = th.zeros(len(string.ascii_uppercase)).scatter_(0,
             th.tensor(string.ascii_uppercase.index(args.letter)), 1).to(device)
 
@@ -32,16 +32,16 @@ def main(args):
 
     curves = model(im[None], z[None])['curves'][0].detach().cpu()
 
-    surface = cairo.PDFSurface(args.out, 128, 128)
+    surface = cairo.PDFSurface(args.out, 224, 224)
     ctx = cairo.Context(surface)
-    ctx.scale(128, 128)
+    ctx.scale(224, 224)
     ctx.rectangle(0, 0, 1, 1)
     ctx.set_source_rgb(1, 1, 1)
     ctx.fill()
 
     ctx.save()
     im = cairo.ImageSurface.create_from_png(args.image)
-    ctx.scale(1/128, 1/128)
+    ctx.scale(1/224, 1/224)
     ctx.set_source_surface(im)
     ctx.paint()
     ctx.restore()
@@ -55,10 +55,9 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("image", type=str)
-    parser.add_argument("letter", type=str)
-    parser.add_argument("out", type=str, default=".")
-    parser.add_argument("--model", type=str, default="dps_2d")
+    parser.add_argument("--letter", type=str, default="X", metavar="LETTER")
+    parser.add_argument("--out", type=str, default=r"D:\DeepParametricShapes\testOuts", metavar="OUTPUT")
+    parser.add_argument("--model", type=str, default="test")
     parser.add_argument("--cuda", dest='cuda', action='store_true')
     parser.add_argument("--no_cuda", dest='cuda', action='store_false')
     parser.set_defaults(cuda=True)

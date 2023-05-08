@@ -168,5 +168,6 @@ class VectorizerInterface(ModelInterface):
             ret['chamferloss'] = (running_data['chamferloss']*count + chamferloss.item()*n) / (count+n)
 
         ret['count'] = count+n
-        ret = ret.update(fwd_data)
+        #ret = ret.update(fwd_data)
+        ret.update(fwd_data)
         return ret
