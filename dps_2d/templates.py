@@ -160,6 +160,7 @@ if __name__ == '__main__':
      0.43, 0.3, 0.52, 0.27, 0.6, 0.24, 0.71, 0.48, 0.29, 0.43, 0.42, 0.38, 0.56, 0.5, 0.57, 0.62, 0.57, 0.58,
      0.45, 0.54, 0.32, 0.5, 0.19] + [0.5] * 16
 
+    x_control_points = letter_templates[23]
     control_points_tensor = torch.tensor(control_points).view(-1, 2)
 
     n_outer_curves = 15

@@ -3,6 +3,7 @@ from freetype import *
 import numpy as np
 import torch as th
 from svgpathtools import Line, Path, QuadraticBezier, CubicBezier, paths2svg
+from pyGutils.viz import plotCubicSpline
 
 from . import templates, utils
 
@@ -157,7 +158,41 @@ def draw_curves(curves, n_loops, ctx, offset=(0, 0), marked_verts=[]):
             ctx.set_source_rgb(0, 0, 0)
         ctx.arc(a[0] + x, a[1] + y, 0.02, 0, 2*np.pi)
         ctx.fill()
+def draw_curves_cubic(curves, n_loops, ctx, offset=(0, 0), marked_verts=[]):
+    x, y = offset
+    curves = th.cat(utils.unroll_curves_cubic(curves[None], templates.topology), dim=1).squeeze(0)
+    curves = curves[:sum(templates.topology[:n_loops])]
 
+    ctx.set_line_width(0.04)
+    ctx.set_source_rgb(0.1, 0.1, 0.1)
+    for i in range(len(curves)):
+        a, b, c = list(curves[i])
+        ctx.move_to(a[0] + x, a[1] + y)
+        ctx.curve_to(a[0] * 1/3 + b[0] * 2/3 + x, a[1] * 1/3 + b[1] * 2/3 + y,
+                     b[0] * 2/3 + c[0] * 1/3 + x, b[1] * 2/3 + c[1] * 1/3 + y,
+                     c[0] + x, c[1] + y)
+        ctx.stroke()
+
+    ctx.set_line_width(0.02)
+    for i in range(len(curves)):
+        color = (x/255 for x in cmap[i % len(cmap)])
+        a, b, c = curves[i]
+        ctx.move_to(a[0] + x, a[1] + y)
+        ctx.set_source_rgb(*color)
+        ctx.curve_to(a[0] * 1/3 + b[0] * 2/3 + x, a[1] * 1/3 + b[1] * 2/3 + y,
+                     b[0] * 2/3 + c[0] * 1/3 + x, b[1] * 2/3 + c[1] * 1/3 + y,
+                     c[0] + x, c[1] + y)
+        ctx.stroke()
+
+    for i in range(len(curves)):
+        color = (x/255 for x in cmap[i % len(cmap)])
+        a, b, c = curves[i]
+        if tuple(a) in marked_verts:
+            ctx.set_source_rgb(214/255, 39/255, 40/255)
+        else:
+            ctx.set_source_rgb(0, 0, 0)
+        ctx.arc(a[0] + x, a[1] + y, 0.02, 0, 2*np.pi)
+        ctx.fill()
 
 def draw_glyph(font, char, ctx, offset=(0, 0), color=(0.6, 0.6, 0.6)):
     try:

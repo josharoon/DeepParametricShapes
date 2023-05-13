@@ -10,7 +10,7 @@ import ttools
 
 from dps_2d import callbacks, datasets, templates
 from dps_2d.interfaces import VectorizerInterface
-from dps_2d.models_3chan import CurvesModel
+from dps_2d.models_3chan import CurvesModel,CurvesModelCubic
 
 
 LOG = logging.getLogger(__name__)
@@ -61,7 +61,7 @@ def main(args):
 
 
 
-    model = CurvesModel(n_curves=sum(templates.topology))
+    model = CurvesModelCubic(n_curves=sum(templates.topology))
 
     checkpointer = ttools.Checkpointer(args.checkpoint_dir, model)
     extras, meta = checkpointer.load_latest()
@@ -88,15 +88,14 @@ def main(args):
         trainer.add_callback(callbacks.RenderingCallback(writer=writer, val_writer=val_writer, frequency=100))
     trainer.add_callback(ttools.callbacks.ProgressBarCallback(keys=keys))
     trainer.add_callback(ttools.callbacks.CheckpointingCallback(checkpointer, interval=None, max_epochs=2))
-    print("Starting training")
     trainer.train(dataloader, num_epochs=args.num_epochs, val_dataloader=val_dataloader, starting_epoch=starting_epoch)
 
 
 if __name__ == '__main__':
     parser = ttools.BasicArgumentParser()
-    parser.add_argument("--w_surface", type=float, default=1)
-    parser.add_argument("--w_alignment", type=float, default=0.01)
-    parser.add_argument("--w_template", type=float, default=5)#10
+    parser.add_argument("--w_surface", type=float, default=5)
+    parser.add_argument("--w_alignment", type=float, default=0.05)
+    parser.add_argument("--w_template", type=float, default=0.00)#10
     parser.add_argument("--eps", type=float, default=0.04)
     parser.add_argument("--max_stroke", type=float, default=0.04)
     #parser.add_argument("--canvas_size", type=int, default=128)

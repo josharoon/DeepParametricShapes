@@ -4,11 +4,14 @@ import os
 import glob
 import tempfile
 import cairo
+import torch
 from PIL import Image, ImageOps
 from torchvision.transforms.functional import to_tensor
 import torch as th
 import ttools
-
+from simplification.cutil import simplify_coords
+import pyGutils.viz
+import utils
 from dps_2d import templates
 #from dps_2d.models import CurvesModel
 from dps_2d.models_3chan import CurvesModel
@@ -31,7 +34,7 @@ def main(args):
     else:
         print("Unable to load checkpoint")
 
-    input_files = sorted(glob.glob(os.path.join(args.input_folder, args.file_pattern.format(name="spoints"))))
+    input_files = sorted(glob.glob(os.path.join(args.input_folder, args.file_pattern.format(name="ext2_279"))))
 
 
     if args.skip > 0:
@@ -76,10 +79,18 @@ def main(args):
         surface.write_to_png(output_path)
         os.remove(scaled_image_path)
         print(f"Output saved to {output_path}")
+        # curves = th.cat(utils.unroll_curves(curves[None], templates.topology), dim=1).squeeze(0)
+        # curves = curves[:sum(templates.topology[:templates.n_loops[args.letter]])]
+        # cubicCurves= utils.elevate_quadratic_to_cubic(curves)
+        # pyGutils.viz.plotCubicSpline(torch.from_numpy(cubicCurves),image=scaled_image)
+
+
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input_folder", type=str, default=r"D:\pyG\data\points\transform_test")
+    #parser.add_argument("--input_folder", type=str, default=r"D:\pyG\data\points\transform_test")
+    parser.add_argument("--input_folder", type=str, default=r"D:\nukeDextr\Datasets\Cataract101Labels\279\in")
     parser.add_argument("--file_pattern", type=str, default="{name}.*.png")
 
     parser.add_argument("--skip", type=int, default=0)

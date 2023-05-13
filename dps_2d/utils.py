@@ -84,6 +84,47 @@ def unroll_curves(curves, topology):
     return unrolled_loops  # n_loops x [b, n_curves, 3, 2]
 
 
+def unroll_curves_cubic(curves, topology):
+    """Unroll curve parameters into loops as defined by the topology.
+
+    curves -- [b, 2*max_n_curves, 2]
+    topology -- [n_loops] list of curves per loop (should sum to max_n_curves)
+    """
+    b = curves.shape[0]
+    curves = curves.view(b, -1, 2)
+    loops = th.split(curves, [2*n for n in topology], dim=1)
+    unrolled_loops = []
+    for loop in loops:
+        loop = th.cat([loop, loop[:,0,None,:]], dim=1)
+        loop = loop.unfold(1, 4, 2).permute(0, 1, 3, 2).view(b, -1, 3, 2)
+        unrolled_loops.append(loop)
+    return unrolled_loops  # n_loops x [b, n_curves, 3, 2]
+
+
+import bezier
+import numpy as np
+import torch
+
+
+def elevate_quadratic_to_cubic(curves):
+    cubic_curves = []
+
+    for curve in curves:
+        # Create a bezier.Curve instance
+        nodes = np.asfortranarray(curve.T)
+        quadratic_curve = bezier.Curve(nodes, degree=2)
+
+        # Elevate the degree of the curve
+        cubic_curve = quadratic_curve.elevate()
+
+        # Extract the control points of the cubic curve
+        cubic_control_points = cubic_curve.nodes.T
+        cubic_curves.append(cubic_control_points)
+
+    return np.array(cubic_curves)
+
+
+
 def compute_distance_fields(curves, n_loops, topology, canvas_size):
     """Compute distance fields of size (canvas_size+2)^2. Distances corresponding to unused curves are set to 10.
 

@@ -25,6 +25,29 @@ class CurvesModel(nn.Module):
                 nn.Linear(128, n_curves),
                 nn.Sigmoid()
             )
+    def forward(self, x, z=None):
+        code = self.resnet18(x, z)
+        return { 'curves': self.curves(code), 'strokes': self.strokes(code) }
+class CurvesModelCubic(nn.Module):
+    def __init__(self, n_curves):
+        super(CurvesModelCubic, self).__init__()
+
+        self.resnet18 = ResNet(BasicBlock, [2, 2, 2, 2], num_classes=256, n_z=len(string.ascii_uppercase))
+        self.curves = nn.Sequential(
+            nn.ReLU(),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, n_curves * 2*3),
+            nn.Sigmoid()
+        )
+        self.strokes = nn.Sequential(
+            nn.ReLU(),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, n_curves),
+            nn.Sigmoid()
+        )
+
 
     def forward(self, x, z=None):
         code = self.resnet18(x, z)
