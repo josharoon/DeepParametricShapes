@@ -63,13 +63,15 @@ def main(args):
 
     model = CurvesModel(n_curves=sum(templates.topology))
 
-    checkpointer = ttools.Checkpointer(args.checkpoint_dir, model)
-    extras, meta = checkpointer.load_latest()
-    starting_epoch = extras['epoch'] if extras is not None else None
 
     interface = VectorizerInterface(model, args.simple_templates, args.lr, args.max_stroke, args.canvas_size,
                                     args.chamfer, args.n_samples_per_curve, args.w_surface, args.w_template,
                                     args.w_alignment, cuda=args.cuda)
+
+
+    checkpointer = ttools.Checkpointer(args.checkpoint_dir, model,optimizers=interface.optimizer)
+    extras, meta = checkpointer.load_latest()
+    starting_epoch = extras['epoch'] if extras is not None else None
 
     keys = ['loss', 'chamferloss', 'templateloss'] if args.chamfer \
         else ['loss', 'surfaceloss', 'alignmentloss', 'templateloss']
@@ -83,9 +85,13 @@ def main(args):
     trainer.add_callback(ttools.callbacks.TensorBoardLoggingCallback(keys=keys, writer=writer,
                                                                      val_writer=val_writer, frequency=5))
     trainer.add_callback(callbacks.InputImageCallback(writer=writer, val_writer=val_writer, frequency=100))
+    trainer.add_callback(callbacks.InputDistanceFieldCallback(writer=writer, val_writer=val_writer, frequency=100))
+    trainer.add_callback(callbacks.InputDistanceFieldCallbackComp(writer=writer, val_writer=val_writer, frequency=100))
     trainer.add_callback(callbacks.CurvesCallback(writer=writer, val_writer=val_writer, frequency=100))
+    trainer.add_callback(callbacks.CurvesCallbackComp(writer=writer, val_writer=val_writer, frequency=100))
     if not args.chamfer:
         trainer.add_callback(callbacks.RenderingCallback(writer=writer, val_writer=val_writer, frequency=100))
+        trainer.add_callback(callbacks.RenderingCompCallback(writer=writer, val_writer=val_writer, frequency=100))
     trainer.add_callback(ttools.callbacks.ProgressBarCallback(keys=keys))
     trainer.add_callback(ttools.callbacks.CheckpointingCallback(checkpointer, interval=None, max_epochs=2))
     print("Starting training")

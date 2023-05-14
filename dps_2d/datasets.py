@@ -185,7 +185,8 @@ class esDataset(th.utils.data.Dataset):
 
 
         distance_fields = th.load(os.path.join(self.root, dfname))
-        distance_fields = th.flip(distance_fields,dims=[0])
+        #distance_fields = th.flip(distance_fields,dims=[0])
+        #distance_fields = th.flip(distance_fields, (1, 0))
 
         #add padding of 2 to the distance fields
         #resize the distance fields to 224x224
