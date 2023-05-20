@@ -34,7 +34,7 @@ def main(args):
     else:
         print("Unable to load checkpoint")
 
-    input_files = sorted(glob.glob(os.path.join(args.input_folder, args.file_pattern.format(name="ext2_279"))))
+    input_files = sorted(glob.glob(os.path.join(args.input_folder, args.file_pattern.format(name="testSeq"))))
 
 
     if args.skip > 0:
@@ -42,9 +42,15 @@ def main(args):
 
     for img_path in input_files:
         im = to_tensor(Image.open(img_path).resize((224, 224))).to(device)
+        # z = th.zeros(len(string.ascii_uppercase)).scatter_(0,
+        #                                                    th.tensor(string.ascii_uppercase.index(args.letter)), 1).to(
+        #     device)
+
+        # o is the index of 'p' or pupil in n_loops eye.
         z = th.zeros(len(string.ascii_uppercase)).scatter_(0,
-                                                           th.tensor(string.ascii_uppercase.index(args.letter)), 1).to(
+                                                           th.tensor(0), 1).to(
             device)
+
 
         print(f"Processing image {img_path} (letter {args.letter})")
 
@@ -75,7 +81,7 @@ def main(args):
         ctx.set_source_surface(im)
         ctx.paint()
         ctx.restore()
-        draw_curves(curves, templates.n_loops[args.letter], ctx)
+        draw_curves(curves, templates.n_loops_eye[args.letter], ctx)
         surface.write_to_png(output_path)
         os.remove(scaled_image_path)
         print(f"Output saved to {output_path}")
@@ -90,11 +96,11 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     #parser.add_argument("--input_folder", type=str, default=r"D:\pyG\data\points\transform_test")
-    parser.add_argument("--input_folder", type=str, default=r"D:\nukeDextr\Datasets\Cataract101Labels\279\in")
+    parser.add_argument("--input_folder", type=str, default=r"D:\DeepParametricShapes\testImages\PreppedSequences\testSeq")
     parser.add_argument("--file_pattern", type=str, default="{name}.*.png")
 
     parser.add_argument("--skip", type=int, default=0)
-    parser.add_argument("--letter", type=str, default="X", metavar="LETTER")
+    parser.add_argument("--letter", type=str, default="P", metavar="LETTER")
     parser.add_argument("--out", type=str, default=r"D:\DeepParametricShapes\testOuts", metavar="OUTPUT")
     parser.add_argument("--model", type=str, default="eye_surgery")
     parser.add_argument("--cuda", dest='cuda', action='store_true')

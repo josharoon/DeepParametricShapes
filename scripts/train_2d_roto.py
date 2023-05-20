@@ -71,6 +71,7 @@ def main(args):
 
     checkpointer = ttools.Checkpointer(args.checkpoint_dir, model,optimizers=interface.optimizer)
     extras, meta = checkpointer.load_latest()
+    print("Loaded checkpoint with extras: {},meta:{}".format(extras, meta))
     starting_epoch = extras['epoch'] if extras is not None else None
 
     keys = ['loss', 'chamferloss', 'templateloss'] if args.chamfer \
@@ -108,7 +109,7 @@ if __name__ == '__main__':
     #parser.add_argument("--canvas_size", type=int, default=128)
     parser.add_argument("--n_samples_per_curve", type=int, default=120)
     parser.add_argument("--chamfer", default=False, dest='chamfer', action='store_true')
-    parser.add_argument("--simple_templates", default=True, dest='simple_templates', action='store_true')
+    parser.add_argument("--simple_templates", default=False, dest='simple_templates', action='store_true')
     parser.add_argument('--sample_percentage',
                       help='Percentage of the dataset to use for training and testing.',
                       type=float,

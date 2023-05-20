@@ -199,15 +199,20 @@ class esDataset(th.utils.data.Dataset):
         if self.chamfer:
             points = th.from_numpy(np.load(os.path.join(self.root, 'points', fname + '.npy')).astype(np.float32))
             points = points[:self.n_samples_per_curve*sum(templates.topology)]
-
+        # get number from file name
+        frNum = int(fname.split('.')[-2])
+        if(frNum>7800):
+            letter_idx=1
+        else:
+            letter_idx=0
         return {
             'fname': fname,
             'im': im,
             'distance_fields': distance_fields,
             'alignment_fields': alignment_fields,
             'occupancy_fields': occupancy_fields,
-            'points': points,
-            'letter_idx': 23, # string.ascii_uppercase.index(fname[0]),
+            'points': letter_idx,
+            'letter_idx': 0, # string.ascii_uppercase.index(fname[0]),
             'n_loops': 1  # self.n_loops_dict[fname[0]]
         }
 
@@ -313,17 +318,17 @@ def distFieldsToPngSeq(folder):
 
 
 if __name__ == '__main__':
-    distFieldsToPngSeq(r"D:\pyG\data\points\transform_test\processed")
+    #distFieldsToPngSeq(r"D:\pyG\data\points\transform_test\processed")
 
     # root=r"D:\pyG\data\points\120423_183451_rev\processed"
     # root2=r"D:\DeepParametricShapes\data\fonts"
-    # root3=r"D:\pyG\data\points\transform_test\processed"
+    root3=r"D:\pyG\data\points\transform_test\processed"
     # dataset1=RotoDataset(root=root,chamfer=False,n_samples_per_curve=100,val=False)
     # dataset2=FontsDataset(root=root2,chamfer=False,n_samples_per_curve=100,val=False)
-    # dataset3=esDataset(root=root3,chamfer=False,n_samples_per_curve=100,val=False)
+    dataset3=esDataset(root=root3,chamfer=False,n_samples_per_curve=100,val=False)
     # data2=dataset2[0]
     # data=dataset1[0]
-    # data3=dataset3[0]
+    data3=dataset3[0]
     # #plot images and distance fields from each data object
     # fig,axs=plt.subplots(4,2)
     # axs[0,0].imshow(data['im'].cpu().numpy().transpose(1,2,0))

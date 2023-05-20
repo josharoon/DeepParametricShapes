@@ -22,8 +22,10 @@ class VectorizerInterface(ModelInterface):
         self.cuda = cuda
         self._step = 0
 
+        # self.curve_templates = th.Tensor(templates.simple_templates if self.simple_templates
+        #         else templates.letter_templates)
         self.curve_templates = th.Tensor(templates.simple_templates if self.simple_templates
-                else templates.letter_templates)
+                else templates.eye_templates)
 
         if self.cuda:
             self.model.cuda()

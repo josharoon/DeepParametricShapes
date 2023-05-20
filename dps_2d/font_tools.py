@@ -3,13 +3,13 @@ import os
 import string
 
 import cairo
-from freetype import *
+#from freetype import *
 import numpy as np
 from svgpathtools import Line, Path, QuadraticBezier, CubicBezier, paths2svg
 from skimage.util.shape import view_as_windows
 from tqdm import tqdm
 
-from . import templates
+import templates
 
 
 n_points_per_unit_length = 600

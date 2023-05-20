@@ -73,10 +73,12 @@ def plotQuadraticSpline(control_points, title='Quadratic Bezier Spline from Cont
         plt.sca(ax)
 
     # Make sure control points are on CPU
-    control_points = control_points.cpu()
+
 
     # Iterate over each shape in the tensor
     for shape in control_points:
+        shape = shape.cpu()
+    #for curve in control_points:
         for curve in shape:
             nodes = np.asfortranarray(curve.numpy().T)
             curve = bezier.Curve(nodes, degree=2)
@@ -101,15 +103,3 @@ if __name__ == '__main__':
         0.43, 0.3, 0.52, 0.27, 0.6, 0.24, 0.71, 0.48, 0.29, 0.43, 0.42, 0.38, 0.56, 0.5, 0.57, 0.62, 0.57, 0.58,
         0.45, 0.54, 0.32, 0.5, 0.19] + [0.5]*16
 
-    control_points_tensor = torch.tensor(control_points).view(-1, 2)
-
-    n_outer_curves = 15
-    n_inner_curves = 4
-
-    outer_shape_control_points = control_points_tensor[:n_outer_curves * 3]
-    inner_shape_control_points = control_points_tensor[n_outer_curves * 3:]
-
-    outer_reshaped = outer_shape_control_points.view(n_outer_curves, 3, 2)
-    inner_reshaped = inner_shape_control_points.view(n_inner_curves, 3, 2)
-
-    reshaped_control_points = torch.cat((outer_reshaped, inner_reshaped), dim=0)
