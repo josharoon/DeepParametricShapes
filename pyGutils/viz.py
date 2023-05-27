@@ -35,7 +35,7 @@ def plot_distance_field(distance_field, vmax, title='Distance Field',ax=None):
 
     # make sure df is on cpu
     distance_field = distance_field.cpu()
-    plt.imshow(distance_field, extent=(0, 250, 0, 250), origin='lower', cmap='viridis', vmin=0, vmax=vmax)
+    plt.imshow(distance_field, extent=(0, 1, 0, 1), origin='lower', cmap='viridis', vmin=0, vmax=vmax)
     plt.colorbar(label='distance Field')
     plt.title(title)
     if ax is None:

@@ -46,9 +46,9 @@ def main(args):
         #                                                    th.tensor(string.ascii_uppercase.index(args.letter)), 1).to(
         #     device)
 
-        # o is the index of 'p' or pupil in n_loops eye.
+        # o is the index of 'p' or pupil in n_loops eye. 1 is the instrument 2 is both
         z = th.zeros(len(string.ascii_uppercase)).scatter_(0,
-                                                           th.tensor(0), 1).to(
+                                                           th.tensor(5), 1).to(
             device)
 
 
@@ -100,7 +100,7 @@ if __name__ == '__main__':
     parser.add_argument("--file_pattern", type=str, default="{name}.*.png")
 
     parser.add_argument("--skip", type=int, default=0)
-    parser.add_argument("--letter", type=str, default="P", metavar="LETTER")
+    parser.add_argument("--letter", type=str, default="C", metavar="LETTER")
     parser.add_argument("--out", type=str, default=r"D:\DeepParametricShapes\testOuts", metavar="OUTPUT")
     parser.add_argument("--model", type=str, default="eye_surgery")
     parser.add_argument("--cuda", dest='cuda', action='store_true')
