@@ -90,8 +90,11 @@ def main(args):
 
     checkpointer = ttools.Checkpointer(args.checkpoint_dir, model,optimizers=interface.optimizer)
     extras, meta = checkpointer.load_latest()
-    print("Loaded checkpoint with extras: {},meta:{}".format(extras, meta))
-    starting_epoch = extras['epoch'] if extras is not None else None
+    if args.start_epoch is not None:
+        starting_epoch = args.start_epoch
+    else:
+        print("Loaded checkpoint with extras: {},meta:{}".format(extras, meta))
+        starting_epoch = extras['epoch'] if extras is not None else None
 
     keys = ['loss', 'chamferloss', 'templateloss'] if args.chamfer \
         else ['loss', 'surfaceloss', 'alignmentloss', 'templateloss']
@@ -147,6 +150,7 @@ if __name__ == '__main__':
     parser.add_argument("--png_dir", type=str, default=r"D:\pyG\data\points\transform_test\combMatte", help="path to the PNG images.")
     parser.add_argument("--architectures", type=str, choices=["unet", "resnet"], default="unet", help="Model architecture")
     parser.add_argument("--resnet_depth", type=int,choices=[18, 34, 50, 101, 152], default=50, help="ResNet depth")
+    parser.add_argument("--start_epoch", type=int, default=None)
     #parser.add_argument("--data", default=r"D:\DeepParametricShapes\data\fonts", help="path to the training data.")
 
     parser.set_defaults(num_worker_threads=0, bs=4, lr=1e-1)
