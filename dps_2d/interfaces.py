@@ -120,7 +120,6 @@ class VectorizerInterface(ModelInterface):
         w_template = self.w_template*np.exp(-max(self._step-1500, 0)/500)
         loss += w_template*templateloss
         ret['loss'] = loss
-
         return ret
 
     def training_step(self, batch):

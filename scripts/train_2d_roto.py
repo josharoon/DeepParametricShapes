@@ -28,11 +28,11 @@ def create_dataset(dataset_type, *args, **kwargs):
     if dataset_type == "fonts":
         data_path = r"D:\DeepParametricShapes\data\fonts"
         canvas_size = 128
-        return datasets.FontsDataset(data_path,args[0],args[1], **kwargs),canvas_size
+        return datasets.FontsDataset(data_path,args[0],args[1], **kwargs),canvas_size,datasets.FontsDataset(data_path,args[0],args[1],val=True, **kwargs)
     elif dataset_type == "roto":
         data_path = r"D:\pyG\data\points\120423_183451_rev\processed"
         canvas_size = 224
-        return datasets.RotoDataset(data_path,args[0],args[1], **kwargs), canvas_size
+        return datasets.RotoDataset(data_path,args[0],args[1], **kwargs), canvas_size,datasets.RotoDataset(data_path,args[0],args[1],val=True, **kwargs)
     elif dataset_type == "surgery":
         data_path=r"D:\pyG\data\points\transform_test\processed"
         canvas_size = 224
@@ -40,7 +40,7 @@ def create_dataset(dataset_type, *args, **kwargs):
             use_png = False
         else:
             use_png = True
-        return datasets.esDataset(data_path,args[0],args[1],use_png=use_png, png_root=png_dir, **kwargs), canvas_size
+        return datasets.esDataset(data_path,args[0],args[1],use_png=use_png, png_root=png_dir, **kwargs), canvas_size,datasets.esDataset(data_path,args[0],args[1],use_png=use_png, png_root=png_dir,val=True, **kwargs)
     else:
         raise ValueError(f"Unknown dataset type: {dataset_type}")
 
@@ -53,22 +53,13 @@ def main(args):
         "w_surface": args.w_surface,
         "w_alignment": args.w_alignment,
         "w_template": args.w_template,
-        "eps": args.eps,
-        "max_stroke": args.max_stroke,
-        "n_samples_per_curve": args.n_samples_per_curve,
-        "chamfer": args.chamfer,
-        "simple_templates": args.simple_templates,
-        "sample_percentage": args.sample_percentage,
         "dataset_type": args.dataset_type,
-        "canvas_size": args.canvas_size,
         "learning_rate": args.lr,
         "batch_size": args.bs,
-        "num_worker_threads": args.num_worker_threads
     }
 
 
-
-    data, args.canvas_size = create_dataset(args.dataset_type, args.chamfer,
+    data, args.canvas_size,val_data = create_dataset(args.dataset_type, args.chamfer,
                                             args.n_samples_per_curve, png_dir=args.png_dir)
 
 
@@ -77,8 +68,8 @@ def main(args):
     dataloader = DataLoader(data, batch_size=args.bs, num_workers=args.num_worker_threads,
                             worker_init_fn=_worker_init_fn, shuffle=True, drop_last=True)
 
-    # Subsampling validation dataset
-    val_data, _ = create_dataset(args.dataset_type, args.chamfer, args.n_samples_per_curve, val=True)
+
+    # val_data, _ = create_dataset(args.dataset_type, args.chamfer, args.n_samples_per_curve, val=True)
 
 
     val_dataloader = DataLoader(val_data,batch_size=args.bs)
@@ -109,7 +100,7 @@ def main(args):
     writer = SummaryWriter(os.path.join(args.checkpoint_dir, 'summaries',
                                         train_run_name), flush_secs=1)
 
-    writer.add_hparams(hparams, {}, run_name=train_run_name)
+    writer.add_hparams(hparams, {}, run_name=train_run_name+"-hparams")
 
     val_writer = SummaryWriter(os.path.join(args.checkpoint_dir, 'summaries',
                                             datetime.datetime.now().strftime('val-%m%d%y-%H%M%S')), flush_secs=1)
@@ -127,15 +118,18 @@ def main(args):
         trainer.add_callback(callbacks.RenderingCompCallback(writer=writer, val_writer=val_writer, frequency=100))
     trainer.add_callback(ttools.callbacks.ProgressBarCallback(keys=keys))
     trainer.add_callback(ttools.callbacks.CheckpointingCallback(checkpointer, interval=None, max_epochs=2))
+    #hparam_callback = HyperparamLoggingCallback(writer, val_writer, keys=keys, hparams=hparams)
+    trainer.add_callback(callbacks.HyperparamLoggingCallback(writer, val_writer, keys=keys, hparams=hparams))
+
     print("Starting training")
     trainer.train(dataloader, num_epochs=args.num_epochs, val_dataloader=val_dataloader, starting_epoch=starting_epoch)
 
 
 if __name__ == '__main__':
     parser = ttools.BasicArgumentParser()
-    parser.add_argument("--w_surface", type=float, default=10)
-    parser.add_argument("--w_alignment", type=float, default=0.0001)
-    parser.add_argument("--w_template", type=float, default=0.1)#10
+    parser.add_argument("--w_surface", type=float, default=0.1)
+    parser.add_argument("--w_alignment", type=float, default=0.01)
+    parser.add_argument("--w_template", type=float, default=10)#10
     parser.add_argument("--eps", type=float, default=0.04)
     parser.add_argument("--max_stroke", type=float, default=0.00)
     #parser.add_argument("--canvas_size", type=int, default=128)
@@ -150,12 +144,12 @@ if __name__ == '__main__':
                         help="Dataset type: 'fonts' or 'roto'")
 
     parser.add_argument("--canvas_size", type=int, default=224)
-    parser.add_argument("--png_dir", type=str, default=None, help="path to the PNG images.")
+    parser.add_argument("--png_dir", type=str, default=r"D:\pyG\data\points\transform_test\combMatte", help="path to the PNG images.")
     parser.add_argument("--architectures", type=str, choices=["unet", "resnet"], default="unet", help="Model architecture")
     parser.add_argument("--resnet_depth", type=int,choices=[18, 34, 50, 101, 152], default=50, help="ResNet depth")
     #parser.add_argument("--data", default=r"D:\DeepParametricShapes\data\fonts", help="path to the training data.")
 
-    parser.set_defaults(num_worker_threads=0, bs=16, lr=1e-4)
+    parser.set_defaults(num_worker_threads=0, bs=4, lr=1e-1)
     args = parser.parse_args()
     ttools.set_logger(args.debug)
     main(args)

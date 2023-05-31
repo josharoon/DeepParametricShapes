@@ -24,6 +24,9 @@ class InputDistanceFieldCallback(cb.TensorBoardImageDisplayCallback):
         df=df.unsqueeze(1)
         return df
 
+
+
+
 class InputDistanceFieldCallbackComp(cb.TensorBoardImageDisplayCallback):
     def tag(self):
         return 'df comp'
@@ -117,3 +120,20 @@ class CurvesCallbackComp(cb.TensorBoardImageDisplayCallback):
             data.append(image)
 
         return th.stack(data)
+
+class HyperparamLoggingCallback(cb.TensorBoardLoggingCallback):
+    def __init__(self, writer, val_writer, keys=None, val_keys=None, hparams=None,
+                 frequency=100, summary_type='scalar'):
+        super().__init__(writer, val_writer, keys, val_keys, frequency, summary_type)
+        self.hparams = hparams or {}
+        self.metrics = {k: 0 for k in (keys or []) + (val_keys or [])}
+
+    def validation_end(self, val_data):
+        super().validation_end(val_data)
+        for k in self.val_keys:
+            if self.summary_type == 'scalar':
+                if type(val_data[k]) == float:
+                    self.metrics[k] = val_data[k]
+
+    def training_end(self):
+        self._writer.add_hparams(self.hparams, self.metrics, run_name=f'hparams_end')

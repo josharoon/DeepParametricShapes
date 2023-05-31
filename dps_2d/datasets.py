@@ -220,7 +220,7 @@ class esDataset(th.utils.data.Dataset):
     def __getitem__(self, idx):
 
         if self.use_png:
-            fname = f"spoints.{str(int(self.filesIndicies[idx])-1).zfill(4)}.png"
+            fname = f"spoints.{str(int(self.filesIndicies[idx])).zfill(4)}.png"
             im_path = os.path.join(self.png_root, fname)
             im = Image.open(im_path)
             im = self.transform(im)
@@ -260,7 +260,7 @@ class esDataset(th.utils.data.Dataset):
         #     letter_idx=1
         # else:
         #     letter_idx=0
-        letter_idx=5 # multi curve template
+        letter_idx=7 # multi curve template
         return {
             'fname': fname,
             'im': im,
@@ -374,7 +374,7 @@ class MultiFieldProcess(Dataset):
         """get the data from the .pt files in the processed directory if file exists otherwise get the data from the raw directory"""
         if Path(self.processed_dir).joinpath(self.processed_file_names[idx]).exists():
             data = torch.load(self.processed_paths[idx])
-            df = torch.load(Path(self.processed_dir).joinpath(f'distance_field.{idx + 1:04d}.pt'))
+            df = torch.load(Path(self.processed_dir).joinpath(f'distance_field.{idx+1:04d}.pt'))
             return data.y, data.x, self.processed_paths[idx], df
         else:
             # get the image
@@ -483,55 +483,57 @@ def distFieldsToPngSeq(folder):
 
 
 if __name__ == '__main__':
-    #distFieldsToPngSeq(r"D:\pyG\data\points\transform_test\processed")
+    distFieldsToPngSeq(r"D:\pyG\data\points\transform_test\processed")
 
 
 
 
-
-    root=r"D:\pyG\data\points\120423_183451_rev\processed"
-    root2=r"D:\DeepParametricShapes\data\fonts"
-    root3=r"D:\pyG\data\points\transform_test\processed"
-    dataset1=RotoDataset(root=root,chamfer=False,n_samples_per_curve=100,val=False)
-    dataset2=FontsDataset(root=root2,chamfer=False,n_samples_per_curve=100,val=False)
-    dataset3=esDataset(root=root3,chamfer=False,n_samples_per_curve=100,val=False)
-    mean, std = compute_mean_std(dataset3, percentage=0.1)  # compute mean and std over 10% of the data
-    print(f'Mean: {mean}')
-    print(f'Std: {std}')
-    dataset4 = esDataset(root=root3, chamfer=False, n_samples_per_curve=100, val=False,use_png=True,png_root=r"D:\pyG\data\points\transform_test\combMatte")
-    mean, std = compute_mean_std(dataset4, percentage=0.1)
-    print(f'Mean: {mean}')
-    print(f'Std: {std}')
-
-    data2=dataset2[0]
-    data=dataset1[0]
-    data3=dataset3[0]
-    # #plot images and distance fields from each data object
-    fig,axs=plt.subplots(4,2)
-    axs[0,0].imshow(data['im'].cpu().numpy().transpose(1,2,0))
-    axs[0,1].imshow(data['distance_fields'].cpu().numpy())
-    axs[1,0].imshow(data2['im'].cpu().numpy().transpose(1,2,0))
-    axs[1,1].imshow(data2['distance_fields'].cpu().numpy())
-    axs[2,0].imshow(data3['im'].cpu().numpy().transpose(1,2,0))
-    axs[2,1].imshow(data3['distance_fields'].cpu().numpy())
     #
-    # # Blend images and distance fields
-    #
-    dist=data3['distance_fields'].cpu()
-    # #make 3 channels
-    dist=th.stack([dist,dist,dist])
-    # just plot distance field in it's own window
-    plt.imshow(dist.numpy().transpose(1,2,0))
-    plt.show()
-    #
-    blend_im = 0.5*data3['im'].cpu() + 0.5*dist
-    #
-    #
-    axs[3,0].imshow(blend_im.numpy().transpose(1,2,0))
-    plt.show()
+    # root=r"D:\pyG\data\points\120423_183451_rev\processed"
+    # root2=r"D:\DeepParametricShapes\data\fonts"
+    # root3=r"D:\pyG\data\points\transform_test\processed"
+    # dataset1=RotoDataset(root=root,chamfer=False,n_samples_per_curve=100,val=False)
+    # #dataset2=FontsDataset(root=root2,chamfer=False,n_samples_per_curve=100,val=False)
+    # dataset2=esDataset(root=root3,chamfer=False,n_samples_per_curve=100,val=False,use_png=True,png_root=r"D:\pyG\data\points\transform_test\combMatte")
+    # dataset3=esDataset(root=root3,chamfer=False,n_samples_per_curve=100,val=False)
+
+    # mean, std = compute_mean_std(dataset3, percentage=0.1)  # compute mean and std over 10% of the data
+    # print(f'Mean: {mean}')
+    # print(f'Std: {std}')
+    # dataset4 = esDataset(root=root3, chamfer=False, n_samples_per_curve=100, val=False,use_png=True,png_root=r"D:\pyG\data\points\transform_test\combMatte")
+    # mean, std = compute_mean_std(dataset4, percentage=0.1)
+    # print(f'Mean: {mean}')
+    # print(f'Std: {std}')
+
+    # data2=dataset2[0]
+    # data=dataset1[0]
+    # data3=dataset3[0]
+    # # #plot images and distance fields from each data object
+    # fig,axs=plt.subplots(4,2)
+    # axs[0,0].imshow(data['im'].cpu().numpy().transpose(1,2,0))
+    # axs[0,1].imshow(data['distance_fields'].cpu().numpy())
+    # axs[1,0].imshow(data2['im'].cpu().numpy().transpose(1,2,0))
+    # axs[1,1].imshow(data2['distance_fields'].cpu().numpy())
+    # axs[2,0].imshow(data3['im'].cpu().numpy().transpose(1,2,0))
+    # axs[2,1].imshow(data3['distance_fields'].cpu().numpy())
+    # #
+    # # # Blend images and distance fields
+    # #
+    # dist=data3['distance_fields'].cpu()
+    # # #make 3 channels
+    # dist=th.stack([dist,dist,dist])
+    # # just plot distance field in it's own window
+    # plt.imshow(dist.numpy().transpose(1,2,0))
+    # plt.show()
+    # #
+    # blend_im = 0.5*data3['im'].cpu() + 0.5*dist
+    # #
+    # #
+    # axs[3,0].imshow(blend_im.numpy().transpose(1,2,0))
+    # plt.show()
 
     # processFields=MultiFieldProcess(root=r"D:\pyG\data\points\transform_test",
-    #                                 labelsFiles=["pointstransform_test_instruments.json","pointstransform_test_pupil.json"])
+    #                                  labelsFiles=["pointstransform_test_instruments.json","pointstransform_test_pupil.json"])
 
 
 
