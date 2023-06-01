@@ -1,33 +1,44 @@
-# random_search.py
+
 import os
 import pickle
 import random
 import argparse
 import shutil
+import glob
 
 from train_2d_roto import main as train
 
-
 def copy_and_rename_model(args, checkpoint_name="training_end.pth"):
     old_checkpoint_path = os.path.join(args.checkpoint_dir, checkpoint_name)
-    new_checkpoint_name = f"{checkpoint_name.rstrip('.pth')}_w_surface_{args.w_surface}_w_alignment_{args.w_alignment}_w_template_{args.w_template}_architecture_{args.architectures}"
+    new_checkpoint_name = f"{checkpoint_name.rstrip('.pth')}_w_surface_{format(args.w_surface, '.3f')}_w_alignment_{format(args.w_alignment, '.3f')}_w_template_{format(args.w_template, '.3f')}_architecture_{args.architectures}"
     if args.architectures == "resnet":
         new_checkpoint_name += f"_resnet_depth_{args.resnet_depth}"
-    new_checkpoint_name += f"_lr_{args.lr}.pth"
+    new_checkpoint_name += f"_lr_{format(args.lr, '.3f')}.pth"
     new_checkpoint_path = os.path.join(args.checkpoint_dir, new_checkpoint_name)
     shutil.copy(old_checkpoint_path, new_checkpoint_path)
 
+    # create new directory for next training run
+    new_directory_path = os.path.join(args.checkpoint_dir, new_checkpoint_name.rstrip('.pth'))
+    os.makedirs(new_directory_path, exist_ok=True)
+    # copy all .pth files into the new directory
+    pth_files = glob.glob(os.path.join(args.checkpoint_dir, '*.pth'))
+    for pth_file in pth_files:
+        shutil.move(pth_file, new_directory_path)
+
+
+
 architecture_options = {
     "resnet": [18, 34, 50, 101, 152],
+    # "resnet": [50],
     "unet": [None],  # None means that no depth parameters for Unet
 }
 
 
 # Define the range of your hyperparameters
-w_surface_range = [0.01, 5]
-w_alignment_range = [0.01, 1]
-w_template_range = [0.01, 20.0]
-lr_range = [1e-6, 1e-1]
+w_surface_range = [0.8, 1.2]
+w_alignment_range = [0.001, 0.2]
+w_template_range = [5, 15]
+lr_range = [1e-5, 1e-3]
 
 SearchSize = 100
 
@@ -60,35 +71,45 @@ for i in range(i_start, SearchSize):  # Perform 20 iterations
     depth = random.choice(architecture_options[architecture])
 
     # Create an argparse.Namespace object with the hyperparameters
-    args = argparse.Namespace(
-        checkpoint_dir="D:\DeepParametricShapes\scripts\checkpoints",
-        num_epochs=5,
-        w_surface=w_surface,
-        w_alignment=w_alignment,
-        w_template=w_template,
-        eps=0.04,
-        start_epoch=0,
-        max_stroke=0.00,
-        n_samples_per_curve=120,
-        chamfer=False,
-        simple_templates=False,
-        sample_percentage=0.9,
-        dataset_type="surgery",
-        canvas_size=224,
-        png_dir=r"D:\pyG\data\points\transform_test\combMatte",
-        architectures="unet",
-        resnet_depth=50,
-        num_worker_threads=0,
-        bs=4,
-        lr=lr,
-        cuda=True,
-        # include all other arguments needed for training with their default values
-    )
+
+    args = argparse.Namespace(val_data=None,
+                              config=None,
+                              checkpoint_dir='D:\\DeepParametricShapes\\scripts\\checkpoints',
+                              init_from=None,
+                              lr=lr,
+                              bs=4,
+                              num_epochs=1,
+                              num_worker_threads=0,
+                              cuda=True,
+                              server=None,
+                              base_url='/',
+                              env='main',
+                              port=8097,
+                              debug=False,
+                              w_surface=w_surface,
+                              w_alignment=w_alignment,
+                              w_template=w_template,
+                              eps=0.04,
+                              max_stroke=0.0,
+                              n_samples_per_curve=120,
+                              chamfer=False,
+                              simple_templates=False,
+                              sample_percentage=0.9,
+                              dataset_type='surgery',
+                              canvas_size=224, png_dir=
+                              'D:\\pyG\\data\\points\\transform_test\\combMatte',
+                              architectures=architecture,
+                              resnet_depth=depth,
+                              start_epoch=None)
+
+
+
 
     # Call the training function with the generated hyperparameters
     try:
         print(
             f"Starting training run {i + 1} with w_surface={w_surface}, w_alignment={w_alignment}, w_template={w_template}, lr={lr}, architecture={architecture}, depth={depth}")
+        print(args)
         train(args)
         print(f"Finished training run {i + 1}")
         copy_and_rename_model(args)

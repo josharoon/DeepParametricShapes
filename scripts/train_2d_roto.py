@@ -103,7 +103,7 @@ def main(args):
     writer = SummaryWriter(os.path.join(args.checkpoint_dir, 'summaries',
                                         train_run_name), flush_secs=1)
 
-    writer.add_hparams(hparams, {}, run_name=train_run_name+"-hparams")
+    #writer.add_hparams(hparams, {}, run_name=train_run_name+"-hparams")
 
     val_writer = SummaryWriter(os.path.join(args.checkpoint_dir, 'summaries',
                                             datetime.datetime.now().strftime('val-%m%d%y-%H%M%S')), flush_secs=1)
@@ -130,9 +130,9 @@ def main(args):
 
 if __name__ == '__main__':
     parser = ttools.BasicArgumentParser()
-    parser.add_argument("--w_surface", type=float, default=0.1)
-    parser.add_argument("--w_alignment", type=float, default=0.01)
-    parser.add_argument("--w_template", type=float, default=10)#10
+    parser.add_argument("--w_surface", type=float, default=4.621754302161242)
+    parser.add_argument("--w_alignment", type=float, default=0.592053666329055)
+    parser.add_argument("--w_template", type=float, default=16.062498868844887)#10
     parser.add_argument("--eps", type=float, default=0.04)
     parser.add_argument("--max_stroke", type=float, default=0.00)
     #parser.add_argument("--canvas_size", type=int, default=128)
@@ -148,12 +148,12 @@ if __name__ == '__main__':
 
     parser.add_argument("--canvas_size", type=int, default=224)
     parser.add_argument("--png_dir", type=str, default=r"D:\pyG\data\points\transform_test\combMatte", help="path to the PNG images.")
-    parser.add_argument("--architectures", type=str, choices=["unet", "resnet"], default="unet", help="Model architecture")
-    parser.add_argument("--resnet_depth", type=int,choices=[18, 34, 50, 101, 152], default=50, help="ResNet depth")
+    parser.add_argument("--architectures", type=str, choices=["unet", "resnet"], default="resnet", help="Model architecture")
+    parser.add_argument("--resnet_depth", type=int,choices=[18, 34, 50, 101, 152], default=101, help="ResNet depth")
     parser.add_argument("--start_epoch", type=int, default=None)
     #parser.add_argument("--data", default=r"D:\DeepParametricShapes\data\fonts", help="path to the training data.")
 
-    parser.set_defaults(num_worker_threads=0, bs=4, lr=1e-1)
+    parser.set_defaults(num_worker_threads=0, bs=4, lr=0.001)
     args = parser.parse_args()
     ttools.set_logger(args.debug)
     main(args)

@@ -114,6 +114,7 @@ class VectorizerInterface(ModelInterface):
             idxs = (n_loops>i).nonzero().squeeze()
             if idxs.numel() == 0:
                break
+            # print(f"idxs: {idxs}, template_loop: {template_loop}, loop: {loop}, n_loops: {n_loops}")
             templateloss += th.mean((loop.index_select(0, idxs) - template_loop.index_select(0, idxs)) ** 2)
         ret['templateloss'] = templateloss
 
