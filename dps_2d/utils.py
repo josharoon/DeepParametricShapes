@@ -210,3 +210,18 @@ def compute_chamfer_distance(a, b):
     """
     D = th.sqrt(th.sum((a.unsqueeze(1) - b.unsqueeze(2))**2, dim=-1) + 1e-6)  # [b, m, n]
     return th.mean(th.sum(D.min(1)[0], dim=1) / a.shape[1] + th.sum(D.min(2)[0], dim=1) / b.shape[1])
+
+# def compute_chamfer_distance(a, b):
+#     diff = (a.unsqueeze(1) - b.unsqueeze(2)) ** 2
+#     if th.isnan(diff).any() or th.isinf(diff).any():
+#         print("NaN or inf values in diff!")
+#     sum_diff = th.sum(diff, dim=-1)
+#     if th.isnan(sum_diff).any() or th.isinf(sum_diff).any():
+#         print("NaN or inf values in sum_diff!")
+#     sum_diff_plus_eps = sum_diff + 1e-6
+#     if th.isnan(sum_diff_plus_eps).any() or th.isinf(sum_diff_plus_eps).any():
+#         print("NaN or inf values in sum_diff_plus_eps!")
+#     D = th.sqrt(sum_diff_plus_eps)
+#     if th.isnan(D).any() or th.isinf(D).any():
+#         print("NaN or inf values in D!")
+#     return th.mean(th.sum(D.min(1)[0], dim=1) / a.shape[1] + th.sum(D.min(2)[0], dim=1) / b.shape[1])

@@ -174,14 +174,10 @@ chinese_letter_templates = [
 if __name__ == '__main__':
     # Combine the given control points and the additional 16 points (0.5)
 
-    control_points=[0.17, 0.9, 0.23, 0.9, 0.28, 0.9, 0.32, 0.77, 0.36, 0.65, 0.42, 0.65, 0.5, 0.65, 0.58, 0.65, 0.65,
-     0.65, 0.68, 0.76, 0.73, 0.9, 0.78, 0.9, 0.84, 0.9, 0.81, 0.79, 0.76, 0.67, 0.74, 0.59, 0.7, 0.48, 0.66,
-     0.36, 0.63, 0.27, 0.6, 0.2, 0.57, 0.1, 0.52, 0.1, 0.44, 0.1, 0.42, 0.17, 0.39, 0.27, 0.36, 0.34, 0.33,
-     0.43, 0.3, 0.52, 0.27, 0.6, 0.24, 0.71, 0.48, 0.29, 0.43, 0.42, 0.38, 0.56, 0.5, 0.57, 0.62, 0.57, 0.58,
-     0.45, 0.54, 0.32, 0.5, 0.19] + [0.5] * 16
 
-    x_control_points = letter_templates[23]
-    control_points_tensor = torch.tensor(control_points).view(-1, 2)
+
+    control_points_tensor = letter_templates[23]
+    control_points_tensor = torch.tensor(control_points_tensor).view(-1, 2)
 
     n_outer_curves = 15
     n_inner_curves = 4
@@ -196,13 +192,5 @@ if __name__ == '__main__':
 
     # Call the modified function to plot the letter 'A'
     plotQuadraticSpline(reshaped_control_points, title="Letter A")
-    # #plot  points from letter_templates
-    # import matplotlib.pyplot as plt
-    # #plot  points from letter_templates
-    # import matplotlib.pyplot as plt
-    # for template in letter_templates:
-    #     x = [template[i] for i in range(0, len(template), 2)]
-    #     y = [template[i] for i in range(1, len(template), 2)]
-    #     plt.plot(x,y)
-    #     plt.show()
+
 

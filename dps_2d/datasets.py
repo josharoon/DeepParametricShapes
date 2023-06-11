@@ -6,7 +6,9 @@ import re
 import string
 from pathlib import Path
 
+import bezier
 import torch
+from matplotlib.pyplot import imshow
 from torchvision.io import read_image
 import numpy as np
 from PIL import Image
@@ -16,10 +18,12 @@ from torch_geometric.data import Data
 from torchvision.transforms import transforms
 from torchvision.transforms.functional import to_tensor
 from torch_geometric.data import  Dataset
+
+from pyGutils.viz import  plotCubicSpline
 from pyGutils.cubicCurvesUtil import *
 from pyGutils.viz import plot_distance_field, plotCubicSpline
 from tqdm import tqdm
-
+from sklearn.model_selection import train_test_split
 from pyGutils.cubicCurvesUtil import convert_to_cubic_control_points, create_grid_points
 from pyGutils.viz import plot_distance_field,plotCubicSpline
 #from . import utils, templates
@@ -86,9 +90,20 @@ class FontsDataset(th.utils.data.Dataset):
         distance_fields = distance_fields[1:-1,1:-1]
         occupancy_fields = utils.compute_occupancy_fields(distance_fields)
         points = th.Tensor([])
+        try:
+            points = th.from_numpy(np.load(os.path.join(self.root, 'points', fname + '.npy')).astype(np.float32))
+            points = points[:self.n_samples_per_curve * sum(templates.topology)]
+            mean_value = torch.nanmean(points)
+            points = torch.where(torch.isnan(points), mean_value, points)
+
+        except:
+            pass
+            # print("Error loading points for {}".format(fname))
         if self.chamfer:
             points = th.from_numpy(np.load(os.path.join(self.root, 'points', fname + '.npy')).astype(np.float32))
             points = points[:self.n_samples_per_curve*sum(templates.topology)]
+            mean_value = torch.nanmean(points)
+            points = torch.where(torch.isnan(points), mean_value, points)
 
         return {
             'fname': fname,
@@ -174,11 +189,14 @@ class RotoDataset(th.utils.data.Dataset):
 
 
 class esDataset(th.utils.data.Dataset):
-    def __init__(self, root, chamfer, n_samples_per_curve, png_root=None, use_png=False, val=False):
+    def __init__(self, root, chamfer, n_samples_per_curve, png_root=None, use_png=False, val=False, im_fr_main_root=False, template_idx=7,
+                 sample=0.9):
+        self.template_idx = template_idx
         self.root = root
         self.chamfer = chamfer
         self.png_root = png_root
         self.use_png = use_png
+        self.im_fr_main_root = im_fr_main_root
         self.n_samples_per_curve = n_samples_per_curve
         self.filesIndicies=self.sortFiles()
         self.transform = transforms.Compose([
@@ -186,20 +204,16 @@ class esDataset(th.utils.data.Dataset):
             transforms.ToTensor()
 
         ])
-
-        np.random.shuffle(self.filesIndicies)
-        cutoff = int(0.9*len(self.filesIndicies))
-        if val:
-            self.files = self.filesIndicies[cutoff:]
-        else:
-            self.files = self.filesIndicies[:cutoff]
+        train_files, val_files = train_test_split(self.filesIndicies, test_size=0.1, random_state=42)
+        self.files = val_files if val else train_files
+        self.filesIndicies = self.files
         self.n_loops_dict = templates.n_loops_eye
 
     def __repr__(self):
         return "esDataset | {} entries".format(len(self))
 
     def __len__(self):
-        return len(self.filesIndicies)
+        return len(self.files)
 
     def sortFiles(self):
         #grab the number before the pt e.g distance_field.00001.pt => 1 there will be duplicate numbers so produce a set
@@ -219,9 +233,12 @@ class esDataset(th.utils.data.Dataset):
 
     def __getitem__(self, idx):
 
-        if self.use_png:
-            fname = f"spoints.{str(int(self.filesIndicies[idx])).zfill(4)}.png"
-            im_path = os.path.join(self.png_root, fname)
+        if self.use_png: #png indices start from 0 instead of 1 so subtract 1
+            fname = f"spoints.{str(int(self.filesIndicies[idx])-1).zfill(4)}.png"
+            if self.im_fr_main_root:
+                im_path = os.path.join("\\".join((self.root.split("\\")[:-1])), fname)
+            else:
+                im_path = os.path.join(self.png_root, fname)
             im = Image.open(im_path)
             im = self.transform(im)
 
@@ -231,16 +248,20 @@ class esDataset(th.utils.data.Dataset):
         else:
             fname = f"spoints.{self.filesIndicies[idx]}.pt"
             im = th.load(os.path.join(self.root, fname))#.y
+
         dfname = f"distance_field.{self.filesIndicies[idx]}.pt"
+        pfname = f"sampled_points_{self.filesIndicies[idx]}.npy"
         # im = Image.open(os.path.join('\\'.join(self.root.split("\\")[:-1]),fname))
         # #resize the image to 224x224
         # im = im.resize((224,224))
 
         #resize the image to 3x224x224
 
-
-        distance_fields = th.load(os.path.join(self.root, dfname))
-        #distance_fields = th.flip(distance_fields,dims=[0])
+        if not self.use_png:
+            distance_fields = th.load(os.path.join(self.root, dfname))
+        else:
+            distance_fields = th.load(os.path.join(self.png_root+"\\processed\\", dfname))
+            #distance_fields = th.flip(distance_fields,dims=[0])
         distance_fields = th.flip(distance_fields, (0,))
 
         #add padding of 2 to the distance fields
@@ -251,8 +272,23 @@ class esDataset(th.utils.data.Dataset):
         #distance_fields = distance_fields[1:-1,1:-1]
         occupancy_fields = utils.compute_occupancy_fields(distance_fields)
         points = th.Tensor([])
+        try:
+            if not self.use_png:
+                points = th.from_numpy(np.load(os.path.join(self.root, pfname)).astype(np.float32))
+            else:
+                points = th.from_numpy(np.load(os.path.join(self.png_root+"\\processed\\", pfname)).astype(np.float32))
+
+            #shuffle points
+            # points = points[torch.randperm(points.shape[0])]
+            points = points[:self.n_samples_per_curve * sum(templates.topology)]
+            mean_value = torch.nanmean(points)
+            points = torch.where(torch.isnan(points), mean_value, points)
+        except:
+            pass
+            # print("Error loading points for {}".format(fname))
         if self.chamfer:
-            points = th.from_numpy(np.load(os.path.join(self.root, 'points', fname + '.npy')).astype(np.float32))
+            points = th.from_numpy(np.load(os.path.join(self.root, pfname)).astype(np.float32))
+            # points = points[torch.randperm(points.shape[0])]
             points = points[:self.n_samples_per_curve*sum(templates.topology)]
         # get number from file name
         # frNum = int(fname.split('.')[-2])
@@ -260,7 +296,7 @@ class esDataset(th.utils.data.Dataset):
         #     letter_idx=1
         # else:
         #     letter_idx=0
-        letter_idx=7 # multi curve template
+        letter_idx= self.template_idx  # multi curve template
         return {
             'fname': fname,
             'im': im,
@@ -269,19 +305,20 @@ class esDataset(th.utils.data.Dataset):
             'occupancy_fields': occupancy_fields,
             'points': points,
             'letter_idx': letter_idx, # string.ascii_uppercase.index(fname[0]),
-            'n_loops': 2  # self.n_loops_dict[fname[0]]
+            'n_loops': 1  # self.n_loops_dict[fname[0]]
         }
 
 class MultiFieldProcess(Dataset):
 
-    def __init__(self,root,labelsFiles=None,transform=None, pre_transform=None,pre_filter=None, preprocess=True):
+    def __init__(self, root, labelsFiles=None, transform=None, pre_transform=None, pre_filter=None, preprocess=True,
+                 proc_path=None):
+        self.processed_subpath = proc_path
         self.root=root
         #self.processed_dir=processed_dir
         self.labelsFiles=labelsFiles
         self.labels=None
         self.labelsDictList=[]
         super().__init__(root, transform, pre_transform, pre_filter)
-        #self.process()
     def loadLabelsJson(self):
         """load the json file containing the labels"""
         with open(self.labels) as f:
@@ -367,7 +404,7 @@ class MultiFieldProcess(Dataset):
         unprocessed_indices = [i for i in range(len(self)) if i not in processed_indices]
         print(f"Found {len(unprocessed_indices)} unprocessed files.")
         with concurrent.futures.ThreadPoolExecutor(max_workers=num_workers) as executor:
-            list(tqdm(executor.map(self.process_image, unprocessed_indices), total=len(unprocessed_indices),
+            list(tqdm(executor.map(self.process_frame, unprocessed_indices), total=len(unprocessed_indices),
                       desc="Processing",
                       unit="image"))
     def get(self, idx):
@@ -385,6 +422,11 @@ class MultiFieldProcess(Dataset):
                 labels.append(labeldict[str(idx + 1)])
             return image, labels
 
+
+    @property
+    def processed_dir(self) -> str:
+        return os.path.join(self.root, self.processed_subpath)
+
     def normalize_image(self, image):
         return image / 255.0
 
@@ -393,7 +435,7 @@ class MultiFieldProcess(Dataset):
         return distance_field / d_max
 
 
-    def process_image(self, index):
+    def process_frame(self, index):
         grid_size = 224
         image, labels = self.get(index)
         image = self.normalize_image(image)
@@ -435,15 +477,138 @@ class MultiFieldProcess(Dataset):
         distance_field = distance_to_curves(source_points, control_points, grid_size).view(grid_size, grid_size)
         distance_field = th.flip(distance_field, (1,))
         distance_field = self.normalize_distance_field(distance_field)
-        # for cp in controlPointsList:
-        #     distance_field =distance_to_curves(source_points, cp, grid_size).view(grid_size, grid_size)
-        #     distance_field = th.flip(distance_field, (1,))
-        #     distance_field = self.normalize_distance_field(distance_field)
-        #     plot_distance_field(distance_field, vmax=1, title="Distance field")
-        #     plotCubicSpline(cp,image=image.permute(1,2,0).cpu().numpy())
-        #plot_distance_field(distance_field,vmax=1, title="Distance field")
+
         torch.save(image, self.processed_paths[index])
         torch.save(distance_field, Path(self.processed_dir).joinpath(f'distance_field.{index+1:04d}.pt'))
+
+class MultiPointProcess(MultiFieldProcess):
+    def __init__(self, root,labelsFiles, num_workers=0,proc_path='processed'):
+        super().__init__(root,labelsFiles, num_workers,proc_path=proc_path)
+
+    def sample_bezier_curve(self, incurve, num_points):
+        """Sample a given bezier curve at fixed intervals."""
+        nodes = incurve.transpose(1, 0)
+
+        curve = bezier.Curve(nodes, degree=3)
+        s_vals = np.linspace(0.0, 1.0, num_points)
+        sampled_points = curve.evaluate_multi(s_vals)
+
+        return sampled_points
+
+    def get(self, idx):
+        """get the data from the .npy files in the processed directory if file exists otherwise get the data from the raw directory"""
+        processed_path = Path(self.processed_dir).joinpath(f'{idx + 1:04d}.npy')
+        #image=torch.load(self.processed_paths[idx])
+        if processed_path.exists():
+            data = np.load(processed_path)
+            return data
+        else:
+            # Get the label
+            # image = read_image(self.raw_paths[idx])
+            labels = []
+            for labeldict in self.labelsDictList:
+                labels.append(labeldict[str(idx + 1)])
+            return labels
+
+    def process(self):
+        # if lables isn't list make it a list
+        if not isinstance(self.labelsFiles, list):
+            self.labelsFiles = [self.labelsFiles]
+        for labelFile in self.labelsFiles:
+            # get the path to the labels file
+            self.labels = Path(self.root).joinpath(labelFile)
+            self.labelsDictList.append(self.loadLabelsJson())
+
+        num_workers = 1  # Adjust this according to your system's resources
+
+        # Find all processed data files using glob
+        processed_files = set(glob.glob(os.path.join(self.processed_dir, '*.npy')))
+        pattern = re.compile(r'.*\.(\d+)\.npy')
+        processed_indices = {int(pattern.match(os.path.basename(f)).group(1)) for f in processed_files}
+        # we need to subtract 1 from each index because the indices in the json file start at 1
+        processed_indices = {x - 1 for x in processed_indices}
+        print(f"Found {len(processed_files)} processed files.")
+
+        print(f"Found {len(processed_indices)} processed indices.")
+
+        # Calculate unprocessed indices
+        print("Calculating unprocessed indices...")
+        unprocessed_indices = [i for i in range(len(self)) if i not in processed_indices]
+        print(f"Found {len(unprocessed_indices)} unprocessed files.")
+        with concurrent.futures.ThreadPoolExecutor(max_workers=num_workers) as executor:
+            list(tqdm(executor.map(self.process_frame, unprocessed_indices), total=len(unprocessed_indices),
+                      desc="Processing",
+                      unit="image"))
+    def convert_to_bezier_format(self,point_array):
+        bezier_curves = []
+        n = len(point_array)
+        for i in range(n):
+            start_point = point_array[i][1]  # center of current curve
+            control_point1 = start_point + point_array[i][2]  # right tangent
+            control_point2 = point_array[(i + 1) % n][1] + point_array[(i + 1) % n][0]  # left tangent of next curve
+            end_point = point_array[(i + 1) % n][1]  # center of next curve
+            bezier_curves.append(np.vstack((start_point, control_point1, control_point2, end_point)))
+        return bezier_curves
+    def process_frame(self, index):
+        labels  = self.get(index)
+        # image = image.numpy().transpose(1, 2, 0)
+        sampled_points_list = []
+        sampleRate=100
+        height_scale_factor = 1 / 1080
+        width_scale_factor = 1 / 1920
+
+        for label in labels:
+              curvepoints = self.getPoints2DList(label)
+              for point in curvepoints:
+                  point.lftTang[1] = 1080 - point.lftTang[1]
+                  point.rhtTang[1] = 1080 - point.rhtTang[1]
+                  point.vertex[1] = 1080 - point.vertex[1]
+              for point in curvepoints:
+                point.scalePoints(width_scale_factor,height_scale_factor)
+              for point in curvepoints:
+                point.lftTang[0]=point.lftTang[0]-point.vertex[0]
+                point.lftTang[1]=point.lftTang[1]-point.vertex[1]
+                point.rhtTang[0]=point.rhtTang[0]-point.vertex[0]
+                point.rhtTang[1]=point.rhtTang[1]-point.vertex[1]
+             #now we need to invert the y axis on all points
+
+              npPoints=[np.array([point.lftTang,point.vertex,point.rhtTang]) for point in curvepoints]
+
+
+
+
+              curves=self.convert_to_bezier_format(npPoints)
+              tensor = torch.zeros(len(curves), 4, 2)
+              for i in range(len(curves)):
+                  tensor[i] = torch.from_numpy(curves[i])
+
+              # imshow(image)
+              # plotCubicSpline(tensor)
+              allCurves = []
+              for curve in curves:
+                  allCurves.append(curve)
+              for curve in allCurves:
+
+
+                  sampled_points = self.sample_bezier_curve(curve, num_points=sampleRate) # num_points can be adjusted
+                  sampled_points_list.append(sampled_points)
+
+
+
+        sampled_points_list = np.array(sampled_points_list)
+        sampled_points_list =sampled_points_list.transpose(0,2, 1).reshape(-1,2)
+        #plot the sampled points list
+        # imshow(image)
+        # plt.scatter(sampled_points_list[:,0],sampled_points_list[:,1],s=1)
+
+
+
+
+        # Save normalized sampled points to npy file
+        np.save(f'{self.processed_dir}/sampled_points_{index+1:04d}.npy', sampled_points_list)
+
+
+
 
 
 def compute_mean_std(dataset, percentage=0.1):
@@ -483,57 +648,79 @@ def distFieldsToPngSeq(folder):
 
 
 if __name__ == '__main__':
-    distFieldsToPngSeq(r"D:\pyG\data\points\transform_test\processed")
+    #distFieldsToPngSeq(r"D:\pyG\data\points\transform_test\processed")
 
 
-
+    # #
+    # processPoints=MultiPointProcess(root=r"D:\pyG\data\points\transform_test",
+    #                                  labelsFiles=["pointstransform_test_instruments.json","pointstransform_test_pupil.json"])
+    # processPoints.process()
 
     #
-    # root=r"D:\pyG\data\points\120423_183451_rev\processed"
-    # root2=r"D:\DeepParametricShapes\data\fonts"
-    # root3=r"D:\pyG\data\points\transform_test\processed"
-    # dataset1=RotoDataset(root=root,chamfer=False,n_samples_per_curve=100,val=False)
-    # #dataset2=FontsDataset(root=root2,chamfer=False,n_samples_per_curve=100,val=False)
-    # dataset2=esDataset(root=root3,chamfer=False,n_samples_per_curve=100,val=False,use_png=True,png_root=r"D:\pyG\data\points\transform_test\combMatte")
-    # dataset3=esDataset(root=root3,chamfer=False,n_samples_per_curve=100,val=False)
+    root=r"D:\pyG\data\points\120423_183451_rev\processed"
+    root2=r"D:\DeepParametricShapes\data\fonts"
+    root3=r"D:\pyG\data\points\transform_test\processed"
+    dataset1=RotoDataset(root=root,chamfer=False,n_samples_per_curve=100,val=False)
+    # dataset2=FontsDataset(root=root2,chamfer=True,n_samples_per_curve=100,val=False)
+    dataset2=esDataset(root=root3,chamfer=False,n_samples_per_curve=100,val=False,use_png=True,png_root=r"D:\pyG\data\points\transform_test\combMatte")
+    dataset3=esDataset(root=root3,chamfer=False,n_samples_per_curve=100,val=True,template_idx=1,use_png=True,  png_root=r"D:\pyG\data\points\transform_test\instrumentMatte", im_fr_main_root=True)
+    # #
+    # a=dataset2[0]
+    # b=dataset3[0]
+    # print(f"a: {a} /n b: {b}")
+    #
+    # # mean, std = compute_mean_std(dataset3, percentage=0.1)  # compute mean and std over 10% of the data
+    # # print(f'Mean: {mean}')
+    # # print(f'Std: {std}')
+    # # dataset4 = esDataset(root=root3, chamfer=False, n_samples_per_curve=100, val=False,use_png=True,png_root=r"D:\pyG\data\points\transform_test\combMatte")
+    # # mean, std = compute_mean_std(dataset4, percentage=0.1)
+    # # print(f'Mean: {mean}')
+    # # print(f'Std: {std}')
+    #
+    data=dataset1[0]
+    data2=dataset2[0]
+    data2points=data2['points']
+    image_shape2 = data2['im'].cpu().numpy().shape[1:3]  # (height, width)
+    scaled_points2 = data2points * np.array(image_shape2)[::-1]  # multiply by (width, height)
 
-    # mean, std = compute_mean_std(dataset3, percentage=0.1)  # compute mean and std over 10% of the data
-    # print(f'Mean: {mean}')
-    # print(f'Std: {std}')
-    # dataset4 = esDataset(root=root3, chamfer=False, n_samples_per_curve=100, val=False,use_png=True,png_root=r"D:\pyG\data\points\transform_test\combMatte")
-    # mean, std = compute_mean_std(dataset4, percentage=0.1)
-    # print(f'Mean: {mean}')
-    # print(f'Std: {std}')
+    data3=dataset3[0]
+    data3points=data3['points']
+    image_shape3 = data3['im'].cpu().numpy().shape[1:3]  # (height, width)
+    scaled_points3 = data3points * np.array(image_shape3)[::-1]  # multiply by (width, height)
 
-    # data2=dataset2[0]
-    # data=dataset1[0]
-    # data3=dataset3[0]
     # # #plot images and distance fields from each data object
-    # fig,axs=plt.subplots(4,2)
+    fig,axs=plt.subplots(4,2)
     # axs[0,0].imshow(data['im'].cpu().numpy().transpose(1,2,0))
     # axs[0,1].imshow(data['distance_fields'].cpu().numpy())
-    # axs[1,0].imshow(data2['im'].cpu().numpy().transpose(1,2,0))
-    # axs[1,1].imshow(data2['distance_fields'].cpu().numpy())
-    # axs[2,0].imshow(data3['im'].cpu().numpy().transpose(1,2,0))
-    # axs[2,1].imshow(data3['distance_fields'].cpu().numpy())
-    # #
-    # # # Blend images and distance fields
-    # #
-    # dist=data3['distance_fields'].cpu()
-    # # #make 3 channels
-    # dist=th.stack([dist,dist,dist])
-    # # just plot distance field in it's own window
-    # plt.imshow(dist.numpy().transpose(1,2,0))
-    # plt.show()
-    # #
-    # blend_im = 0.5*data3['im'].cpu() + 0.5*dist
-    # #
-    # #
-    # axs[3,0].imshow(blend_im.numpy().transpose(1,2,0))
-    # plt.show()
+    axs[1,0].imshow(data2['im'].cpu().numpy().transpose(1,2,0))
+    axs[1, 0].scatter(scaled_points2[:, 0], scaled_points2[:, 1], s=1, c='r')
+    axs[1,1].imshow(data2['distance_fields'].cpu().numpy())
+    axs[2,0].imshow(data3['im'].cpu().numpy().transpose(1,2,0))
+    axs[2, 0].scatter(scaled_points3[:, 0], scaled_points3[:, 1], s=1, c='r')
+    axs[2,1].imshow(data3['distance_fields'].cpu().numpy())
+    #
+    # # Blend images and distance fields
+    #
+    dist=data3['distance_fields'].cpu()
+    # #make 3 channels
+    dist=th.stack([dist,dist,dist])
+    # just plot distance field in it's own window
+    plt.imshow(dist.numpy().transpose(1,2,0))
+    plt.show()
+    #
+    blend_im = 0.5*data3['im'].cpu() + 0.5*dist
+    #
+    #
+    axs[3,0].imshow(blend_im.numpy().transpose(1,2,0))
+    plt.show()
 
     # processFields=MultiFieldProcess(root=r"D:\pyG\data\points\transform_test",
     #                                  labelsFiles=["pointstransform_test_instruments.json","pointstransform_test_pupil.json"])
 
-
-
+    #
+    # processFields=MultiFieldProcess(root=r"D:\pyG\data\points\transform_test",
+    #                                  labelsFiles=["pointstransform_test_instruments.json"],proc_path="instrumentMatte/processed")
+    #
+    # processPoints=MultiPointProcess(root=r"D:\pyG\data\points\transform_test",
+    #                                  labelsFiles=["pointstransform_test_instruments.json"],proc_path="instrumentMatte/processed")
+    # processPoints.process()

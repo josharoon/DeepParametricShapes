@@ -9,7 +9,7 @@ from . import utils, templates
 
 class VectorizerInterface(ModelInterface):
     def __init__(self, model, simple_templates, lr, max_stroke, canvas_size, chamfer, n_samples_per_curve, w_surface,
-                 w_template, w_alignment, cuda=True):
+                 w_template, w_alignment,w_chamfer,dataset="surgery", cuda=True):
         self.model = model
         self.simple_templates = simple_templates
         self.max_stroke = max_stroke
@@ -19,13 +19,20 @@ class VectorizerInterface(ModelInterface):
         self.w_surface = w_surface
         self.w_template = w_template
         self.w_alignment = w_alignment
+        self.w_chamfer = w_chamfer
         self.cuda = cuda
         self._step = 0
 
         # self.curve_templates = th.Tensor(templates.simple_templates if self.simple_templates
         #         else templates.letter_templates)
-        self.curve_templates = th.Tensor(templates.simple_templates if self.simple_templates
-                else templates.eye_templates)
+        if simple_templates:
+            self.curve_templates = th.Tensor(templates.simple_templates)
+        else:
+            if dataset=="fonts":
+                self.curve_templates = th.Tensor(templates.letter_templates)
+            else:
+                self.curve_templates = th.Tensor(templates.eye_templates)
+
 
         if self.cuda:
             self.model.cuda()
@@ -72,6 +79,11 @@ class VectorizerInterface(ModelInterface):
             target_distance_fields = batch['distance_fields']
             target_alignment_fields = batch['alignment_fields']
             target_occupancy_fields = batch['occupancy_fields']
+            try:
+                target_points = batch['points']
+            except:
+                target_points = None
+                print("No points in batch")
         else:
             target_points = batch['points']
         letter_idx = batch['letter_idx']
@@ -81,6 +93,11 @@ class VectorizerInterface(ModelInterface):
                 target_distance_fields = target_distance_fields.cuda()
                 target_alignment_fields = target_alignment_fields.cuda()
                 target_occupancy_fields = target_occupancy_fields.cuda()
+                try:
+                    target_points = target_points.cuda()
+                except:
+                    target_points = None
+                    print("No points to move to Cuda")
             else:
                 target_points = target_points.cuda()
             letter_idx = letter_idx.cuda()
@@ -98,6 +115,18 @@ class VectorizerInterface(ModelInterface):
             ret['surfaceloss'] = surfaceloss
             ret['alignmentloss'] = alignmentloss
             loss += self.w_surface*surfaceloss + self.w_alignment*alignmentloss
+            if target_points is not None:
+                try:
+                    chamferloss = utils.compute_chamfer_distance(
+                            utils.sample_points_from_curves(curves, n_loops, templates.topology, self.n_samples_per_curve),
+                            target_points)
+                    ret['chamferloss'] = chamferloss
+                    loss += self.w_chamfer*chamferloss
+                except:
+                    # ret['chamferloss'] = 0
+                    pass
+                    print("No points in batch - cannot compute chamfer loss")
+
         else:
             chamferloss = utils.compute_chamfer_distance(
                     utils.sample_points_from_curves(curves, n_loops, templates.topology, self.n_samples_per_curve),
@@ -141,7 +170,7 @@ class VectorizerInterface(ModelInterface):
 
     def init_validation(self):
         losses = ['loss', 'chamferloss', 'templateloss'] if self.chamfer \
-            else ['loss', 'surfaceloss', 'alignmentloss', 'templateloss']
+            else ['loss', 'surfaceloss', 'alignmentloss', 'templateloss','chamferloss']
         ret = { l: 0 for l in losses }
         ret['count'] = 0
         return ret
@@ -165,6 +194,12 @@ class VectorizerInterface(ModelInterface):
             alignmentloss = losses_dict['alignmentloss']
             ret['surfaceloss'] = (running_data['surfaceloss']*count + surfaceloss.item()*n) / (count+n)
             ret['alignmentloss'] = (running_data['alignmentloss']*count + alignmentloss.item()*n) / (count+n)
+            try:
+                chamferloss = losses_dict['chamferloss']
+                ret['chamferloss'] = (running_data['chamferloss']*count + chamferloss.item()*n) / (count+n)
+            except:
+                print("No points in batch - cannot compute chamfer loss in validation")
+                pass
         else:
             chamferloss = losses_dict['chamferloss']
             ret['chamferloss'] = (running_data['chamferloss']*count + chamferloss.item()*n) / (count+n)

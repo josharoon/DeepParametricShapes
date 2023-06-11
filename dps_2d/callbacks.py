@@ -2,6 +2,7 @@ import cairo
 import numpy as np
 import torch as th
 from torchvision.transforms.functional import to_tensor
+from torchvision.utils import make_grid
 import ttools.callbacks as cb
 import torch.nn.functional as F
 from . import viz
@@ -56,6 +57,7 @@ class RenderingCallback(cb.TensorBoardImageDisplayCallback):
 
 
 class RenderingCompCallback(cb.TensorBoardImageDisplayCallback):
+
     def tag(self):
         return 'rendering comp'
 
@@ -128,12 +130,24 @@ class HyperparamLoggingCallback(cb.TensorBoardLoggingCallback):
         self.hparams = hparams or {}
         self.metrics = {k: 0 for k in (keys or []) + (val_keys or [])}
 
+    # def validation_end(self, val_data):
+    #     super().validation_end(val_data)
+    #     for k in self.val_keys:
+    #         if self.summary_type == 'scalar':
+    #             if type(val_data[k]) == float:
+    #                 self.metrics[k] = val_data[k]
+    #     self._writer.add_hparams(self.hparams, self.metrics, run_name=f'val_step')
+    #
+    #
     def validation_end(self, val_data):
-        super().validation_end(val_data)
+        super(HyperparamLoggingCallback, self).validation_end(val_data)
+        t = self.datasize * (self.epoch+1)
         for k in self.val_keys:
             if self.summary_type == 'scalar':
                 if type(val_data[k]) == float:
-                    self.metrics[k] = val_data[k]
+                    self._val_writer.add_scalar(k, val_data[k], global_step=t)
 
-    def training_end(self):
-        self._writer.add_hparams(self.hparams, self.metrics, run_name=f'hparams_end')
+
+
+    # def training_end(self):
+    #     self._writer.add_hparams(self.hparams, self.metrics, run_name=f'hparams_end')

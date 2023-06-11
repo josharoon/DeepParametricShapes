@@ -93,6 +93,27 @@ def plotQuadraticSpline(control_points, title='Quadratic Bezier Spline from Cont
     if ax is None:
         plt.show()
 
+def plotQuadraticSplineGrid(control_points, title='Quadratic Bezier Spline from Control Points', ax=None):
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(6, 6))
+
+    # Iterate over each shape in the tensor
+    for shape in control_points:
+        shape = shape.cpu()
+        for curve in shape:
+            nodes = np.asfortranarray(curve.numpy().T)
+            curve = bezier.Curve(nodes, degree=2)
+            curve.plot(num_pts=256, ax=ax)
+            #
+            ax.plot(curve.nodes[0, :2], curve.nodes[1, :2], linestyle='--', marker='o', color='gray')
+            ax.plot(curve.nodes[0, 1:], curve.nodes[1, 1:], linestyle='--', marker='o', color='gray')
+    #
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_title(title)
+
+
+
 
 if __name__ == '__main__':
     import torch

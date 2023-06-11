@@ -30,17 +30,18 @@ def copy_and_rename_model(args, checkpoint_name="training_end.pth"):
 architecture_options = {
     "resnet": [18, 34, 50, 101, 152],
     # "resnet": [50],
-    "unet": [None],  # None means that no depth parameters for Unet
+    # "unet": [None],  # None means that no depth parameters for Unet
 }
 
 
 # Define the range of your hyperparameters
-w_surface_range = [0.8, 1.2]
-w_alignment_range = [0.001, 0.2]
-w_template_range = [5, 15]
-lr_range = [1e-5, 1e-3]
+w_surface_range = [0.0, 2]
+w_alignment_range = [0.000, 0.2]
+w_template_range = [0, 10]
+lr_range = [1e-4, 1e-2]
+chamfer_range = [0.0, 2]
 
-SearchSize = 100
+SearchSize = 20
 
 # Checkpoint file path
 checkpoint_path = "checkpoints/random_search_checkpoint.pkl"
@@ -65,6 +66,7 @@ for i in range(i_start, SearchSize):  # Perform 20 iterations
     w_alignment = random.uniform(*w_alignment_range)
     w_template = random.uniform(*w_template_range)
     lr = random.uniform(*lr_range)
+    w_chamfer = random.uniform(*chamfer_range)
 
     # Randomly choose an architecture and its corresponding depth
     architecture = random.choice(list(architecture_options.keys()))
@@ -77,8 +79,8 @@ for i in range(i_start, SearchSize):  # Perform 20 iterations
                               checkpoint_dir='D:\\DeepParametricShapes\\scripts\\checkpoints',
                               init_from=None,
                               lr=lr,
-                              bs=4,
-                              num_epochs=1,
+                              bs=16,
+                              num_epochs=5,
                               num_worker_threads=0,
                               cuda=True,
                               server=None,
@@ -89,17 +91,19 @@ for i in range(i_start, SearchSize):  # Perform 20 iterations
                               w_surface=w_surface,
                               w_alignment=w_alignment,
                               w_template=w_template,
+                              w_chamfer=w_chamfer,
                               eps=0.04,
-                              max_stroke=0.0,
-                              n_samples_per_curve=120,
+                              max_stroke=0.6,
+                              n_samples_per_curve=19,
                               chamfer=False,
                               simple_templates=False,
                               sample_percentage=0.9,
                               dataset_type='surgery',
-                              canvas_size=224, png_dir=
-                              'D:\\pyG\\data\\points\\transform_test\\combMatte',
+                              canvas_size=224, png_dir=r"D:\pyG\data\points\transform_test\instrumentMatte",
+                              template_idx=1,
                               architectures=architecture,
                               resnet_depth=depth,
+                              im_fr_main_root=True,
                               start_epoch=None)
 
 
