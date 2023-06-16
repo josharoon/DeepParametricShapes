@@ -25,8 +25,8 @@ from pyGutils.viz import plot_distance_field, plotCubicSpline
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
 from pyGutils.cubicCurvesUtil import convert_to_cubic_control_points, create_grid_points
-from pyGutils.viz import plot_distance_field,plotCubicSpline
-#from . import utils, templates
+from pyGutils.viz import plot_distance_field,plotCubicSpline,visualize_vector_field
+
 import utils, templates
 
 
@@ -190,7 +190,8 @@ class RotoDataset(th.utils.data.Dataset):
 
 class esDataset(th.utils.data.Dataset):
     def __init__(self, root, chamfer, n_samples_per_curve, png_root=None, use_png=False, val=False, im_fr_main_root=False, template_idx=7,
-                 sample=0.9):
+                 sample=0.9, loops=1):
+        self.nloops = loops
         self.template_idx = template_idx
         self.root = root
         self.chamfer = chamfer
@@ -258,18 +259,19 @@ class esDataset(th.utils.data.Dataset):
         #resize the image to 3x224x224
 
         if not self.use_png:
-            distance_fields = th.load(os.path.join(self.root, dfname))
+            distance_fields = th.load(os.path.join(self.root, dfname))**2
         else:
-            distance_fields = th.load(os.path.join(self.png_root+"\\processed\\", dfname))
+            distance_fields = th.load(os.path.join(self.png_root+"\\processed\\", dfname))**2
             #distance_fields = th.flip(distance_fields,dims=[0])
-        distance_fields = th.flip(distance_fields, (0,))
+        distance_fields = th.flip(distance_fields, (0,))[55:-55,55:-55] #we introduce a crop to match workflow from DPS
 
         #add padding of 2 to the distance fields
         #resize the distance fields to 224x224
-        distance_fields = th.nn.functional.interpolate(distance_fields.unsqueeze(0).unsqueeze(0),size=(224,224),mode='bilinear').squeeze(0).squeeze(0)
-        distance_fields_pad= th.nn.functional.pad(distance_fields,(1,1,1,1))
-        alignment_fields = utils.compute_alignment_fields(distance_fields_pad)
+        # distance_fields = th.nn.functional.interpolate(distance_fields.unsqueeze(0).unsqueeze(0),size=(224,224),mode='bilinear').squeeze(0).squeeze(0)
+        # distance_fields_pad= th.nn.functional.pad(distance_fields,(1,1,1,1))
+        alignment_fields = utils.compute_alignment_fields(distance_fields)
         #distance_fields = distance_fields[1:-1,1:-1]
+        distance_fields = distance_fields[1:-1, 1:-1]
         occupancy_fields = utils.compute_occupancy_fields(distance_fields)
         points = th.Tensor([])
         try:
@@ -279,7 +281,9 @@ class esDataset(th.utils.data.Dataset):
                 points = th.from_numpy(np.load(os.path.join(self.png_root+"\\processed\\", pfname)).astype(np.float32))
 
             #shuffle points
-            # points = points[torch.randperm(points.shape[0])]
+            npoints = points.shape[0]
+            shuffle_indices = torch.randperm(npoints)
+            points= points[shuffle_indices]
             points = points[:self.n_samples_per_curve * sum(templates.topology)]
             mean_value = torch.nanmean(points)
             points = torch.where(torch.isnan(points), mean_value, points)
@@ -305,13 +309,14 @@ class esDataset(th.utils.data.Dataset):
             'occupancy_fields': occupancy_fields,
             'points': points,
             'letter_idx': letter_idx, # string.ascii_uppercase.index(fname[0]),
-            'n_loops': 1  # self.n_loops_dict[fname[0]]
+            'n_loops': self.nloops  # self.n_loops_dict[fname[0]]
         }
 
 class MultiFieldProcess(Dataset):
 
     def __init__(self, root, labelsFiles=None, transform=None, pre_transform=None, pre_filter=None, preprocess=True,
-                 proc_path=None):
+                 proc_path=None, grid_expansion_ratio=1.5):
+        self.grid_epansion_ratio = grid_expansion_ratio
         self.processed_subpath = proc_path
         self.root=root
         #self.processed_dir=processed_dir
@@ -409,18 +414,19 @@ class MultiFieldProcess(Dataset):
                       unit="image"))
     def get(self, idx):
         """get the data from the .pt files in the processed directory if file exists otherwise get the data from the raw directory"""
-        if Path(self.processed_dir).joinpath(self.processed_file_names[idx]).exists():
-            data = torch.load(self.processed_paths[idx])
-            df = torch.load(Path(self.processed_dir).joinpath(f'distance_field.{idx+1:04d}.pt'))
-            return data.y, data.x, self.processed_paths[idx], df
-        else:
-            # get the image
-            image = read_image(self.raw_paths[idx])
-            # get the label
-            labels=[]
-            for labeldict in self.labelsDictList:
-                labels.append(labeldict[str(idx + 1)])
-            return image, labels
+        # if Path(self.processed_dir).joinpath(self.processed_file_names[idx]).exists():
+        #     data = torch.load(self.processed_paths[idx])
+        #
+        #     df = torch.load(Path(self.processed_dir).joinpath(f'distance_field.{idx+1:04d}.pt'))
+        #     data, df
+        # else:
+        #     # get the image
+        image = read_image(self.raw_paths[idx])
+        # get the label
+        labels=[]
+        for labeldict in self.labelsDictList:
+            labels.append(labeldict[str(idx + 1)])
+        return image, labels
 
 
     @property
@@ -436,7 +442,8 @@ class MultiFieldProcess(Dataset):
 
 
     def process_frame(self, index):
-        grid_size = 224
+        canvas_size = 224
+        grid_size = canvas_size
         image, labels = self.get(index)
         image = self.normalize_image(image)
         curvepoints=[self.getPoints2DList(label) for label in labels]
@@ -446,13 +453,13 @@ class MultiFieldProcess(Dataset):
                 allpoints+=curve
         #we scale everything to 224x224 for the model
         original_height, original_width = image.shape[1:]
-        if original_height != 224 or original_width != 224:
+        if original_height != canvas_size or original_width != canvas_size:
             # Calculate scaling factors
-            height_scale_factor = 224 / original_height
-            width_scale_factor = 224 / original_width
+            height_scale_factor = canvas_size / original_height
+            width_scale_factor = canvas_size / original_width
             # Resize the image
             image = th.nn.functional.interpolate(
-                image.unsqueeze(0), size=(224, 224), mode="bilinear"
+                image.unsqueeze(0), size=(canvas_size, canvas_size), mode="bilinear"
             ).squeeze(0)
             # Scale the control points
             for point in allpoints:
@@ -468,13 +475,20 @@ class MultiFieldProcess(Dataset):
         controlPointsList=[convert_to_cubic_control_points(cp[None, :]).to(th.float64) for cp in curvesTensor]
         #plot control points in controlPointsList
         control_points = th.cat(controlPointsList, dim=0)
-        source_points = create_grid_points(grid_size, 0, 224, 0, 224)
+
+        exp_grid_size = int(grid_size * self.grid_epansion_ratio)
+        extra_grid = int((exp_grid_size - grid_size) / 2)
+        # add offset to x on control points to account for the extra grid
+        control_points[:, :, 0] += extra_grid*2
+        source_points = create_grid_points(exp_grid_size, 0 - extra_grid, canvas_size+extra_grid, 0-extra_grid, canvas_size+extra_grid)
 
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
         control_points = control_points.to(device)
         source_points = source_points.to(device)
-
-        distance_field = distance_to_curves(source_points, control_points, grid_size).view(grid_size, grid_size)
+        # grid_pts = th.stack(th.meshgrid([th.linspace(-1 / (canvas_size - 1), 1 + 1 / (canvas_size - 1), canvas_size + 2)] * 2),
+        #     dim=-1).permute(1, 0, 2).reshape(-1, 2).to(device)
+        # distance_field = distance_to_curves(grid_pts, control_points, grid_size).view(canvas_size+2, canvas_size+2)
+        distance_field = distance_to_curves(source_points, control_points, exp_grid_size).view(exp_grid_size, exp_grid_size)
         distance_field = th.flip(distance_field, (1,))
         distance_field = self.normalize_distance_field(distance_field)
 
@@ -639,16 +653,28 @@ def distToPng(dist,path):
     image = Image.fromarray(rescaled_image)
     image.save(path)
    # print(f"saved {path}")
-def distFieldsToPngSeq(folder):
+def distFieldsToPngSeq(folder, name="distance_field", ext="pt"):
     """convert all distance fields in folder to png images"""
-    files=glob.glob(os.path.join(folder,"distance_field.*.pt"))
+    files=glob.glob(os.path.join(folder, "%s.*.%s" % (name, ext)))
+
     for file in files:
-        dist=th.load(file)
-        distToPng(dist,file.replace(".pt",".png"))
+        if ext=="pt":
+            dist=th.load(file)
+        elif ext=="npy":
+            dist=np.load(file)
+            dist=th.from_numpy(dist)
+        distToPng(dist, file.replace(".%s" % ext, ".png"))
+
+def delFilesbyExtention(folder, ext="pt", name="*"):
+    files=glob.glob(os.path.join(folder, "*.{}".format(ext)))
+    for file in files:
+        os.remove(file)
 
 
 if __name__ == '__main__':
-    #distFieldsToPngSeq(r"D:\pyG\data\points\transform_test\processed")
+    # delFilesbyExtention(r"D:\pyG\data\points\transform_test\pupilMatte\processed",ext="pt",name="*" )
+    # delFilesbyExtention(r"D:\pyG\data\points\transform_test\pupilMatte\processed",ext="png",name="*" )
+    # distFieldsToPngSeq(r"D:\pyG\data\points\transform_test\pupilMatte\processed",name="distance_field",ext="pt"  )
 
 
     # #
@@ -658,13 +684,13 @@ if __name__ == '__main__':
 
     #
     root=r"D:\pyG\data\points\120423_183451_rev\processed"
-    root2=r"D:\DeepParametricShapes\data\fonts"
+    root2=r"D:\ThesisData\fonts"
     root3=r"D:\pyG\data\points\transform_test\processed"
-    dataset1=RotoDataset(root=root,chamfer=False,n_samples_per_curve=100,val=False)
+    # dataset1=RotoDataset(root=root,chamfer=False,n_samples_per_curve=100,val=False)
     # dataset2=FontsDataset(root=root2,chamfer=True,n_samples_per_curve=100,val=False)
-    dataset2=esDataset(root=root3,chamfer=False,n_samples_per_curve=100,val=False,use_png=True,png_root=r"D:\pyG\data\points\transform_test\combMatte")
-    dataset3=esDataset(root=root3,chamfer=False,n_samples_per_curve=100,val=True,template_idx=1,use_png=True,  png_root=r"D:\pyG\data\points\transform_test\instrumentMatte", im_fr_main_root=True)
-    # #
+    # # # dataset2=esDataset(root=root3,chamfer=False,n_samples_per_curve=100,val=False,use_png=True,png_root=r"D:\pyG\data\points\transform_test\combMatte")
+    # dataset3=esDataset(root=root3,chamfer=False,n_samples_per_curve=100,val=True,template_idx=1,use_png=True,  png_root=r"D:\pyG\data\points\transform_test\pupilMatte", im_fr_main_root=True)
+    # # # #
     # a=dataset2[0]
     # b=dataset3[0]
     # print(f"a: {a} /n b: {b}")
@@ -677,50 +703,70 @@ if __name__ == '__main__':
     # # print(f'Mean: {mean}')
     # # print(f'Std: {std}')
     #
-    data=dataset1[0]
-    data2=dataset2[0]
-    data2points=data2['points']
-    image_shape2 = data2['im'].cpu().numpy().shape[1:3]  # (height, width)
-    scaled_points2 = data2points * np.array(image_shape2)[::-1]  # multiply by (width, height)
-
-    data3=dataset3[0]
-    data3points=data3['points']
-    image_shape3 = data3['im'].cpu().numpy().shape[1:3]  # (height, width)
-    scaled_points3 = data3points * np.array(image_shape3)[::-1]  # multiply by (width, height)
-
-    # # #plot images and distance fields from each data object
-    fig,axs=plt.subplots(4,2)
-    # axs[0,0].imshow(data['im'].cpu().numpy().transpose(1,2,0))
-    # axs[0,1].imshow(data['distance_fields'].cpu().numpy())
-    axs[1,0].imshow(data2['im'].cpu().numpy().transpose(1,2,0))
-    axs[1, 0].scatter(scaled_points2[:, 0], scaled_points2[:, 1], s=1, c='r')
-    axs[1,1].imshow(data2['distance_fields'].cpu().numpy())
-    axs[2,0].imshow(data3['im'].cpu().numpy().transpose(1,2,0))
-    axs[2, 0].scatter(scaled_points3[:, 0], scaled_points3[:, 1], s=1, c='r')
-    axs[2,1].imshow(data3['distance_fields'].cpu().numpy())
+    # data=dataset1[0]
+    # dataAlignment=data['alignment_fields']
+    # data2=dataset2[0]
+    # data2points=data2['points']
+    # data2Alignment=data2['alignment_fields']
+    # image_shape2 = data2['im'].cpu().numpy().shape[1:3]  # (height, width)
+    # scaled_points2 = data2points * np.array(image_shape2)[::-1]  # multiply by (width, height)
     #
-    # # Blend images and distance fields
+    # data3=dataset3[10]
+    # data3points=data3['points']
+    # data3occupancy=data3['occupancy_fields']
+    # data3Alignment=data3['alignment_fields']
+    # image_shape3 = data3['im'].cpu().numpy().shape[1:3]  # (height, width)
+    # scaled_points3 = data3points * np.array(image_shape3)[::-1]  # multiply by (width, height)
     #
-    dist=data3['distance_fields'].cpu()
-    # #make 3 channels
-    dist=th.stack([dist,dist,dist])
-    # just plot distance field in it's own window
-    plt.imshow(dist.numpy().transpose(1,2,0))
-    plt.show()
+    # # # #plot images and distance fields from each data object
+    # fig,axs=plt.subplots(4,2)
+    # # axs[0,0].imshow(data['im'].cpu().numpy().transpose(1,2,0))
+    # # axs[0,1].imshow(data['distance_fields'].cpu().numpy())
+    # axs[1,0].imshow(data2['im'].cpu().numpy().transpose(1,2,0))
+    # axs[1, 0].scatter(scaled_points2[:, 0], scaled_points2[:, 1], s=1, c='r')
+    # axs[1,1].imshow(data2['distance_fields'].cpu().numpy())
+    # axs[2,0].imshow(data3['im'].cpu().numpy().transpose(1,2,0))
+    # axs[2, 0].scatter(scaled_points3[:, 0], scaled_points3[:, 1], s=1, c='r')
+    # axs[2,1].imshow(data3['occupancy_fields'].cpu().numpy())
+    # #
+    # # # Blend images and distance fields
+    # #
+    # dist=data3['distance_fields'].cpu()
+    # # #make 3 channels
+    # dist=th.stack([dist,dist,dist])
+    # # just plot distance field in it's own window
+    # plt.imshow(dist.numpy().transpose(1,2,0))
+    # plt.show()
+    # #
+    # blend_im = 0.5*data3['im'].cpu() + 0.5*dist
+    # #
+    # #
+    # axs[3,0].imshow(blend_im.numpy().transpose(1,2,0))
+    # plt.show()
     #
-    blend_im = 0.5*data3['im'].cpu() + 0.5*dist
-    #
-    #
-    axs[3,0].imshow(blend_im.numpy().transpose(1,2,0))
-    plt.show()
+    # visualize_vector_field(data3Alignment,scale=0.0000001,subsample=2)
+    # visualize_vector_field(dataAlignment,scale=0.0000001,subsample=2)
 
     # processFields=MultiFieldProcess(root=r"D:\pyG\data\points\transform_test",
     #                                  labelsFiles=["pointstransform_test_instruments.json","pointstransform_test_pupil.json"])
 
-    #
+
     # processFields=MultiFieldProcess(root=r"D:\pyG\data\points\transform_test",
-    #                                  labelsFiles=["pointstransform_test_instruments.json"],proc_path="instrumentMatte/processed")
+    #                                  labelsFiles=["pointstransform_test_pupil.json"],proc_path="pupilMatte/processed")
     #
+    # processFields.process()
+
+    # processFields=MultiFieldProcess(root=r"D:\pyG\data\points\transform_test",
+    #                                  labelsFiles=["pointstransform_test_pupil.json"],proc_path="pupilMatte/processed")
+    #
+    # processFields.process()
+
+    # distFieldsToPngSeq(r"D:\pyG\data\points\transform_test\pupilMatte\processed")
     # processPoints=MultiPointProcess(root=r"D:\pyG\data\points\transform_test",
     #                                  labelsFiles=["pointstransform_test_instruments.json"],proc_path="instrumentMatte/processed")
     # processPoints.process()
+
+    processFields=MultiFieldProcess(root=r"D:\pyG\data\points\transform_test",
+                                     labelsFiles=["pointstransform_test_instruments.json"],proc_path="instrumentMatte/processed")
+
+    processFields.process()

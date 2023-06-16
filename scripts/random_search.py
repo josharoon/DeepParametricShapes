@@ -5,8 +5,9 @@ import random
 import argparse
 import shutil
 import glob
-
 from train_2d_roto import main as train
+
+TRAINING_PATH = r"D:\DeepParametricShapes\scripts\checkpoints"
 
 def copy_and_rename_model(args, checkpoint_name="training_end.pth"):
     old_checkpoint_path = os.path.join(args.checkpoint_dir, checkpoint_name)
@@ -44,7 +45,7 @@ chamfer_range = [0.0, 2]
 SearchSize = 20
 
 # Checkpoint file path
-checkpoint_path = "checkpoints/random_search_checkpoint.pkl"
+checkpoint_path = r"D:\DeepParametricShapes\checkpoints\random_search_checkpoint.pkl"
 
 # Load the latest checkpoint if it exists
 if os.path.exists(checkpoint_path):
@@ -104,9 +105,11 @@ for i in range(i_start, SearchSize):  # Perform 20 iterations
                               architectures=architecture,
                               resnet_depth=depth,
                               im_fr_main_root=True,
-                              start_epoch=None)
+                              start_epoch=None,
+                              start_pth=None)
 
-
+    if args.pth_file_path:
+        shutil.copy(args.pth_file_path, TRAINING_PATH)
 
 
     # Call the training function with the generated hyperparameters

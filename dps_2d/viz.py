@@ -138,7 +138,7 @@ def draw_curves(curves, n_loops, ctx, offset=(0, 0), marked_verts=[]):
                      c[0] + x, c[1] + y)
         ctx.stroke()
 
-    ctx.set_line_width(0.02)
+    ctx.set_line_width(0.01)
     for i in range(len(curves)):
         color = (x/255 for x in cmap[i % len(cmap)])
         a, b, c = curves[i]
@@ -276,3 +276,4 @@ def draw_glyph(font, char, ctx, offset=(0, 0), color=(0.6, 0.6, 0.6)):
                              bpoints[2].real + x, bpoints[2].imag + y,
                              bpoints[3].real + x, bpoints[3].imag + y)
     ctx.fill()
+

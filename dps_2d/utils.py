@@ -153,17 +153,21 @@ def compute_distance_fields(curves, n_loops, topology, canvas_size):
 
 def compute_alignment_fields(distance_fields):
     """Compute alignment unit vector fields from distance fields."""
+
     dx = distance_fields[...,2:,1:-1] - distance_fields[...,:-2,1:-1]
     dy = distance_fields[...,1:-1,2:] - distance_fields[...,1:-1,:-2]
     alignment_fields = th.stack([dx, dy], dim=-1)
     return alignment_fields / th.sqrt(th.sum(alignment_fields**2, dim=-1, keepdims=True) + 1e-6)
 
 
-def compute_occupancy_fields(distance_fields, eps=(2/128)**2):
+def compute_occupancy_fields(distance_fields, eps=(2/224)**2):
     """Compute smooth occupancy fields from distance fields."""
+    # distance_fields/=8
+    # eps=eps*(224)
     occupancy_fields = 1 - th.clamp(distance_fields / eps, 0, 1)
     return occupancy_fields**2 * (3 - 2*occupancy_fields)
-
+    # return ((3*occupancy_fields**2)-2*(occupancy_fields**2))
+    # return occupancy_fields
 
 def sample_points_from_curves(curves, n_loops, topology, n_samples_per_curve):
     """Sample points from Bezier curves.

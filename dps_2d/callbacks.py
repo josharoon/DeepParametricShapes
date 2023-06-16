@@ -63,11 +63,43 @@ class RenderingCompCallback(cb.TensorBoardImageDisplayCallback):
 
     def visualized_image(self, batch, fwd_result):
         occField=fwd_result['occupancy_fields'].unsqueeze(1)
+        occField_Target=batch['occupancy_fields'].unsqueeze(1)
+        targetPoints=batch['points']
         image=batch['im']
         if occField.is_cuda:
             image=image.cuda()
-        image+=occField
-        return image
+        # image+=occField
+
+        # Replace positive occlusion field values with red pixels in each channel
+        image1=image.clone()
+        positive_mask = occField > 0
+        image1[:,[0],:,:]=th.where(positive_mask, occField, image[:,[0],:,:])
+        image1[:,[1],:,:]=th.where(positive_mask, 0, image[:,[1],:,:])
+        image1[:,[2],:,:]=th.where(positive_mask, 0, image[:,[2],:,:])
+
+        # Replace positive target occlusion field values with green pixels in each channel
+        image2=image.clone()
+        positive_mask_target = occField_Target > 0
+        image2[:,[1],:,:]=th.where(positive_mask_target, occField_Target.float(), image[:,[1],:,:])
+        image2[:,[0],:,:]=th.where(positive_mask_target, 0,image[:,[0],:,:])
+        image2[:,[2],:,:]=th.where(positive_mask_target, 0,image[:,[2],:,:])
+        image3=(image1+image2)/2
+
+        # Mark target points with blue color
+        targetPoints *= image.shape[2]
+        image4 = image3.clone()
+        for b in range(targetPoints.shape[0]):  # loop through batch
+            for i in range(targetPoints.shape[1]):  # loop through points
+                y, x = targetPoints[b, i]
+                # Ensure the coordinates are integers and within the image dimensions
+                x,y = int(x), int(y)
+                if 0 <= x < image4.shape[2] and 0 <= y < image4.shape[3]:
+                    image4[b, [0], x, y] = 0
+                    image4[b, [1], x, y] = 0
+                    image4[b, [2], x, y] = 1
+
+        return image4
+
 
 
 class CurvesCallback(cb.TensorBoardImageDisplayCallback):

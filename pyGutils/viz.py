@@ -114,6 +114,43 @@ def plotQuadraticSplineGrid(control_points, title='Quadratic Bezier Spline from 
 
 
 
+from utils import compute_alignment_fields
+
+def visualize_vector_field(alignment_fields,diffField=False,scale=1,subsample=5):
+
+    if diffField:
+        alignment_fields = compute_alignment_fields(alignment_fields)
+    # convert the PyTorch tensor to numpy array
+    alignment_fields_np = alignment_fields.cpu().numpy()
+
+    # assuming alignment_fields_np is of shape [H, W, 2], where H is the height, W is the width
+    # and 2 for the 2D vector (dx, dy)
+    dx = alignment_fields_np[:,:,0]
+    dy = alignment_fields_np[:,:,1]
+
+
+    # Normalize the vectors
+    magnitude = np.sqrt(dx**2 + dy**2)
+    dx /= magnitude
+    dy /= magnitude
+
+    # make a grid
+    Y, X = np.mgrid[0:dx.shape[0], 0:dx.shape[1]]
+
+    # Subsample grid and vectors (take every nth point in each direction)
+    X = X[::subsample, ::subsample]
+    Y = Y[::subsample, ::subsample]
+    dx = dx[::subsample, ::subsample]
+    dy = dy[::subsample, ::subsample]
+
+    # plot quiver
+    plt.quiver(X, Y, dx, dy, color='r')
+
+    plt.show()
+
+
+
+
 
 if __name__ == '__main__':
     import torch

@@ -33,6 +33,7 @@ def create_dataset(dataset_type, *args, **kwargs):
     png_dir = kwargs.pop('png_dir', None)  # Extract the png_dir from kwargs
     template_idx = kwargs.pop('template_idx', None)
     im_fr_main_root = kwargs.pop('im_fr_main_root', None)
+    loops=kwargs.pop('loops',1)
     if dataset_type == "fonts":
         data_path = r"D:\DeepParametricShapes\data\fonts"
         canvas_size = 128
@@ -47,8 +48,8 @@ def create_dataset(dataset_type, *args, **kwargs):
             use_png = False
         else:
             use_png = True
-        return datasets.esDataset(data_path,args[0],args[1],use_png=use_png, png_root=png_dir,im_fr_main_root=im_fr_main_root,template_idx=template_idx, **kwargs), canvas_size,datasets.esDataset(data_path,args[0],args[1],
-            use_png=use_png, png_root=png_dir,val=True,im_fr_main_root=im_fr_main_root,template_idx=template_idx, **kwargs)
+        return datasets.esDataset(data_path,args[0],args[1],use_png=use_png, png_root=png_dir,im_fr_main_root=im_fr_main_root,template_idx=template_idx,loops=loops, **kwargs), canvas_size,datasets.esDataset(data_path,args[0],args[1],
+            use_png=use_png, png_root=png_dir,val=True,im_fr_main_root=im_fr_main_root,template_idx=template_idx,loops=loops, **kwargs)
     else:
         raise ValueError(f"Unknown dataset type: {dataset_type}")
 
@@ -73,7 +74,7 @@ def main(args):
 
 
     data, args.canvas_size,val_data = create_dataset(args.dataset_type, args.chamfer,
-                                            args.n_samples_per_curve, png_dir=args.png_dir,template_idx=args.template_idx,im_fr_main_root=args.im_fr_main_root)
+                                            args.n_samples_per_curve, png_dir=args.png_dir,template_idx=args.template_idx,im_fr_main_root=args.im_fr_main_root, loops=args.loops)
 
 
 
@@ -100,7 +101,8 @@ def main(args):
 
     interface = VectorizerInterface(model, args.simple_templates, args.lr, args.max_stroke, args.canvas_size,
                                     args.chamfer, args.n_samples_per_curve, args.w_surface, args.w_template,
-                                    args.w_alignment,args.w_chamfer,  cuda=args.cuda, dataset=args.dataset_type)
+                                    args.w_alignment,args.w_chamfer,  cuda=args.cuda, dataset=args.dataset_type
+                                    ,templates_topology=[8,4,4])
 
 
     checkpointer = ttools.Checkpointer(args.checkpoint_dir, model,optimizers=interface.optimizer)
@@ -154,10 +156,10 @@ def main(args):
 
 if __name__ == '__main__':
     parser = ttools.BasicArgumentParser()
-    parser.add_argument("--w_surface", type=float, default=0.021640)
-    parser.add_argument("--w_alignment", type=float, default=0.15115)
-    parser.add_argument("--w_template", type=float, default=5.2925)#10
-    parser.add_argument("--w_chamfer", type=float, default=1.0766)
+    parser.add_argument("--w_surface", type=float, default=1)
+    parser.add_argument("--w_alignment", type=float, default=0.01)
+    parser.add_argument("--w_template", type=float, default=10)#10
+    parser.add_argument("--w_chamfer", type=float, default=0.0)
     parser.add_argument("--eps", type=float, default=0.04)
     parser.add_argument("--max_stroke", type=float, default=0.04)
     #parser.add_argument("--canvas_size", type=int, default=128)
@@ -172,14 +174,16 @@ if __name__ == '__main__':
                         help="Dataset type: 'fonts' or 'roto'")
 
     parser.add_argument("--canvas_size", type=int, default=224)
-    parser.add_argument("--png_dir", type=str, default=r"D:\pyG\data\points\transform_test\instrumentMatte", help="path to the PNG images.")
+    # parser.add_argument("--png_dir", type=str, default=None, help="path to the PNG images.")
+    parser.add_argument("--png_dir", type=str, default=r"D:\pyG\data\points\transform_test\pupilMatte", help="path to the PNG images.")
     parser.add_argument("--architectures", type=str, choices=["unet", "resnet"], default="resnet", help="Model architecture")
-    parser.add_argument("--resnet_depth", type=int,choices=[18, 34, 50, 101, 152], default=34.000, help="ResNet depth")
+    parser.add_argument("--resnet_depth", type=int,choices=[18, 34, 50, 101, 152], default=18, help="ResNet depth")
     parser.add_argument("--start_epoch", type=int, default=None)
-    parser.add_argument("--template_idx", type=int, default=1)
+    parser.add_argument("--template_idx", type=int, default=2)
     parser.add_argument("--im_fr_main_root", type=bool, default=True)
+    parser.add_argument("--loops", type=int, default=1)
 
-    parser.set_defaults(num_worker_threads=0, bs=16, lr=0.0054690)
+    parser.set_defaults(num_worker_threads=0, bs=8, lr=1e-4)
     args = parser.parse_args()
     ttools.set_logger(args.debug)
     main(args)

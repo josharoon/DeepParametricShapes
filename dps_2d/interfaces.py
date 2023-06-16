@@ -9,7 +9,8 @@ from . import utils, templates
 
 class VectorizerInterface(ModelInterface):
     def __init__(self, model, simple_templates, lr, max_stroke, canvas_size, chamfer, n_samples_per_curve, w_surface,
-                 w_template, w_alignment,w_chamfer,dataset="surgery", cuda=True):
+                 w_template, w_alignment, w_chamfer, dataset="surgery", cuda=True,
+                 templates_topology=templates.topology):
         self.model = model
         self.simple_templates = simple_templates
         self.max_stroke = max_stroke
@@ -22,6 +23,7 @@ class VectorizerInterface(ModelInterface):
         self.w_chamfer = w_chamfer
         self.cuda = cuda
         self._step = 0
+        self.topology= templates_topology
 
         # self.curve_templates = th.Tensor(templates.simple_templates if self.simple_templates
         #         else templates.letter_templates)
@@ -31,7 +33,7 @@ class VectorizerInterface(ModelInterface):
             if dataset=="fonts":
                 self.curve_templates = th.Tensor(templates.letter_templates)
             else:
-                self.curve_templates = th.Tensor(templates.eye_templates)
+                self.curve_templates = th.Tensor(templates.eye_templates2)
 
 
         if self.cuda:
@@ -55,7 +57,7 @@ class VectorizerInterface(ModelInterface):
 
         if not self.chamfer:
             strokes = out['strokes'] * self.max_stroke
-            distance_fields = utils.compute_distance_fields(curves, n_loops, templates.topology, self.canvas_size)
+            distance_fields = utils.compute_distance_fields(curves, n_loops, self.topology, self.canvas_size)
             distance_fields = th.max(distance_fields-strokes[...,None,None], th.zeros_like(distance_fields)).min(1)[0]
             distance_fields = distance_fields ** 2
             alignment_fields = utils.compute_alignment_fields(distance_fields)
@@ -149,12 +151,21 @@ class VectorizerInterface(ModelInterface):
 
         w_template = self.w_template*np.exp(-max(self._step-1500, 0)/500)
         loss += w_template*templateloss
+
+        # #regularization
+        # mean_curve = th.mean(curves, dim=0)  # Compute the mean curve
+        # variance = th.mean((curves - mean_curve) ** 2)  # Compute variance
+        # regularization = -variance  # We want to maximize variance so the term is negative
+        # # Add regularization to total loss
+        # w_regularization = 0.01  # Choose a suitable weight
+        # loss += w_regularization * regularization
+
         ret['loss'] = loss
         return ret
 
     def training_step(self, batch):
         self.model.train()
-        fwd_data = self.forward(batch)
+        fwd_data = self.forward(batch,self.topology)
 
         self.optimizer.zero_grad()
 
