@@ -21,7 +21,7 @@ class InputDistanceFieldCallback(cb.TensorBoardImageDisplayCallback):
         return 'df'
 
     def visualized_image(self, batch, fwd_result):
-        df=batch['distance_fields']
+        df=batch['occupancy_fields']/3
         df=df.unsqueeze(1)
         return df
 
@@ -34,14 +34,14 @@ class InputDistanceFieldCallbackComp(cb.TensorBoardImageDisplayCallback):
 
     def visualized_image(self, batch, fwd_result):
         threshold = 0.03
-        df = batch['distance_fields']
-        df = df.unsqueeze(1)
-        df = (df.abs() < threshold).float()
+        df = batch['occupancy_fields']/3
+        # df = df.unsqueeze(1)
+        # df = (df.abs() < threshold).float()
 
         image = batch['im']
         if df.is_cuda:
             image = image.cuda()
-        image+=df
+        image[:,1]+=df
 
         return image
 
@@ -60,6 +60,7 @@ class RenderingCompCallback(cb.TensorBoardImageDisplayCallback):
 
     def tag(self):
         return 'rendering comp'
+
 
     def visualized_image(self, batch, fwd_result):
         occField=fwd_result['occupancy_fields'].unsqueeze(1)

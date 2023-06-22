@@ -13,6 +13,7 @@ from dps_2d import callbacks, datasets, templates
 from dps_2d.interfaces import VectorizerInterface
 from dps_2d.models_3chan import CurvesModel
 from dps_2d.models import CurvesModel as FontCurvesModel
+from templates import topology
 
 LOG = logging.getLogger(__name__)
 
@@ -39,10 +40,12 @@ def create_dataset(dataset_type, *args, **kwargs):
         canvas_size = 128
         return datasets.FontsDataset(data_path,args[0],args[1], **kwargs),canvas_size,datasets.FontsDataset(data_path,args[0],args[1],val=True, **kwargs)
     elif dataset_type == "roto":
-        data_path = r"D:\pyG\data\points\120423_183451_rev\processed"
+        data_path = r"D:\ThesisData\data\points\rotoshapes\processed"
         canvas_size = 224
+        return datasets.RotoDataset(data_path, args[0], args[1], **kwargs), canvas_size, datasets.RotoDataset(
+            data_path, args[0], args[1], val=True, **kwargs)
     elif dataset_type == "surgery":
-        data_path=r"D:\pyG\data\points\transform_test\processed"
+        data_path=r"D:\ThesisData\data\points\transform_test\processed"
         canvas_size = 224
         if png_dir is None:
             use_png = False
@@ -63,6 +66,7 @@ def main(args):
         "w_alignment": args.w_alignment,
         "w_template": args.w_template,
         "w_chamfer": args.w_chamfer,
+        "w_curve": args.w_curve,
         "dataset_type": args.dataset_type,
         "learning_rate": args.lr,
         "batch_size": args.bs,
@@ -70,7 +74,7 @@ def main(args):
         "resnet_depth": args.resnet_depth,
 
     }
-    hyperparams =hparams (hparamsDict, {"loss": 0,"templateloss":0,"chamferloss":0,"surfaceloss":0,"alignmentloss":0})
+    hyperparams =hparams (hparamsDict, {"loss": 0,"templateloss":0,"chamferloss":0,"surfaceloss":0,"alignmentloss":0,"curve":0})
 
 
     data, args.canvas_size,val_data = create_dataset(args.dataset_type, args.chamfer,
@@ -100,9 +104,9 @@ def main(args):
 
 
     interface = VectorizerInterface(model, args.simple_templates, args.lr, args.max_stroke, args.canvas_size,
-                                    args.chamfer, args.n_samples_per_curve, args.w_surface, args.w_template,
+                                    args.chamfer, args.n_samples_per_curve, args.w_surface, args.w_template,args.w_curve,
                                     args.w_alignment,args.w_chamfer,  cuda=args.cuda, dataset=args.dataset_type
-                                    ,templates_topology=[8,4,4])
+                                    ,templates_topology=topology)
 
 
     checkpointer = ttools.Checkpointer(args.checkpoint_dir, model,optimizers=interface.optimizer)
@@ -113,8 +117,8 @@ def main(args):
         print("Loaded checkpoint with extras: {},meta:{}".format(extras, meta))
         starting_epoch = extras['epoch'] if extras is not None else None
 
-    keys = ['loss', 'chamferloss', 'templateloss'] if args.chamfer \
-        else ['loss', 'surfaceloss', 'alignmentloss', 'templateloss','chamferloss']
+    keys = ['loss', 'chamferloss', 'templateloss','curveloss'] if args.chamfer \
+        else ['loss', 'surfaceloss', 'alignmentloss', 'templateloss','chamferloss','curveloss']
 
     train_run_name = datetime.datetime.now().strftime('train-%m%d%y-%H%M%S')
     writer = SummaryWriter(os.path.join(args.checkpoint_dir, 'summaries',
@@ -157,9 +161,10 @@ def main(args):
 if __name__ == '__main__':
     parser = ttools.BasicArgumentParser()
     parser.add_argument("--w_surface", type=float, default=1)
-    parser.add_argument("--w_alignment", type=float, default=0.01)
-    parser.add_argument("--w_template", type=float, default=10)#10
-    parser.add_argument("--w_chamfer", type=float, default=0.0)
+    parser.add_argument("--w_alignment", type=float, default=0.1)
+    parser.add_argument("--w_template", type=float, default=20)#10
+    parser.add_argument("--w_chamfer", type=float, default=0.00)
+    parser.add_argument("--w_curve", type=float, default=0)
     parser.add_argument("--eps", type=float, default=0.04)
     parser.add_argument("--max_stroke", type=float, default=0.04)
     #parser.add_argument("--canvas_size", type=int, default=128)
@@ -175,15 +180,15 @@ if __name__ == '__main__':
 
     parser.add_argument("--canvas_size", type=int, default=224)
     # parser.add_argument("--png_dir", type=str, default=None, help="path to the PNG images.")
-    parser.add_argument("--png_dir", type=str, default=r"D:\pyG\data\points\transform_test\pupilMatte", help="path to the PNG images.")
+    parser.add_argument("--png_dir", type=str, default=r"D:\ThesisData\data\points\transform_test\instrumentMatte", help="path to the PNG images.")
     parser.add_argument("--architectures", type=str, choices=["unet", "resnet"], default="resnet", help="Model architecture")
     parser.add_argument("--resnet_depth", type=int,choices=[18, 34, 50, 101, 152], default=18, help="ResNet depth")
     parser.add_argument("--start_epoch", type=int, default=None)
-    parser.add_argument("--template_idx", type=int, default=2)
-    parser.add_argument("--im_fr_main_root", type=bool, default=True)
+    parser.add_argument("--template_idx", type=int, default=0)
+    parser.add_argument("--im_fr_main_root", type=bool, default=False)
     parser.add_argument("--loops", type=int, default=1)
 
-    parser.set_defaults(num_worker_threads=0, bs=8, lr=1e-4)
+    parser.set_defaults(num_worker_threads=0, bs=4, lr=1e-4)
     args = parser.parse_args()
     ttools.set_logger(args.debug)
     main(args)

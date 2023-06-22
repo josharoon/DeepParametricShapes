@@ -9,7 +9,7 @@ from . import utils, templates
 
 class VectorizerInterface(ModelInterface):
     def __init__(self, model, simple_templates, lr, max_stroke, canvas_size, chamfer, n_samples_per_curve, w_surface,
-                 w_template, w_alignment, w_chamfer, dataset="surgery", cuda=True,
+                 w_template, w_alignment, w_chamfer,w_curve, dataset="surgery", cuda=True,
                  templates_topology=templates.topology):
         self.model = model
         self.simple_templates = simple_templates
@@ -21,6 +21,7 @@ class VectorizerInterface(ModelInterface):
         self.w_template = w_template
         self.w_alignment = w_alignment
         self.w_chamfer = w_chamfer
+        self.w_curve = w_curve
         self.cuda = cuda
         self._step = 0
         self.topology= templates_topology
@@ -33,7 +34,7 @@ class VectorizerInterface(ModelInterface):
             if dataset=="fonts":
                 self.curve_templates = th.Tensor(templates.letter_templates)
             else:
-                self.curve_templates = th.Tensor(templates.eye_templates2)
+                self.curve_templates = th.Tensor(templates.eye_templates)
 
 
         if self.cuda:
@@ -64,6 +65,7 @@ class VectorizerInterface(ModelInterface):
             distance_fields = distance_fields[...,1:-1,1:-1]
             occupancy_fields = utils.compute_occupancy_fields(distance_fields)
 
+
             ret = {
                 'curves': curves,
                 'distance_fields': distance_fields,
@@ -83,9 +85,16 @@ class VectorizerInterface(ModelInterface):
             target_occupancy_fields = batch['occupancy_fields']
             try:
                 target_points = batch['points']
+
+
+
             except:
                 target_points = None
                 print("No points in batch")
+            # try:
+            #     target_curves=batch['targetCurves']
+            # except:
+            #     print("No curves in batch")
         else:
             target_points = batch['points']
         letter_idx = batch['letter_idx']
@@ -100,6 +109,12 @@ class VectorizerInterface(ModelInterface):
                 except:
                     target_points = None
                     print("No points to move to Cuda")
+                # try:
+                #     target_curves = target_curves.cuda()
+                # except:
+                #     target_curves = None
+                #     print("No curves to move to Cuda")
+
             else:
                 target_points = target_points.cuda()
             letter_idx = letter_idx.cuda()
@@ -124,10 +139,18 @@ class VectorizerInterface(ModelInterface):
                             target_points)
                     ret['chamferloss'] = chamferloss
                     loss += self.w_chamfer*chamferloss
+                    curveloss = utils.compute_curve_loss(utils.sample_points_from_curves(curves, n_loops, templates.topology, self.n_samples_per_curve),
+                            target_points)
+
+                    ret['curveloss'] = curveloss
+                    loss += self.w_curve*curveloss
                 except:
                     # ret['chamferloss'] = 0
                     pass
                     print("No points in batch - cannot compute chamfer loss")
+
+
+
 
         else:
             chamferloss = utils.compute_chamfer_distance(
@@ -165,7 +188,7 @@ class VectorizerInterface(ModelInterface):
 
     def training_step(self, batch):
         self.model.train()
-        fwd_data = self.forward(batch,self.topology)
+        fwd_data = self.forward(batch)
 
         self.optimizer.zero_grad()
 
@@ -181,7 +204,7 @@ class VectorizerInterface(ModelInterface):
 
     def init_validation(self):
         losses = ['loss', 'chamferloss', 'templateloss'] if self.chamfer \
-            else ['loss', 'surfaceloss', 'alignmentloss', 'templateloss','chamferloss']
+            else ['loss', 'surfaceloss', 'alignmentloss', 'templateloss','chamferloss','curveloss']
         ret = { l: 0 for l in losses }
         ret['count'] = 0
         return ret
@@ -203,8 +226,10 @@ class VectorizerInterface(ModelInterface):
         if not self.chamfer:
             surfaceloss = losses_dict['surfaceloss']
             alignmentloss = losses_dict['alignmentloss']
+            curveloss=losses_dict['curveloss']
             ret['surfaceloss'] = (running_data['surfaceloss']*count + surfaceloss.item()*n) / (count+n)
             ret['alignmentloss'] = (running_data['alignmentloss']*count + alignmentloss.item()*n) / (count+n)
+            ret['curveloss'] = (running_data['curveloss']*count + curveloss.item()*n) / (count+n)
             try:
                 chamferloss = losses_dict['chamferloss']
                 ret['chamferloss'] = (running_data['chamferloss']*count + chamferloss.item()*n) / (count+n)

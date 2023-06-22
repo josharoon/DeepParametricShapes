@@ -40,7 +40,7 @@ def main(args):
     starting_epoch = extras['epoch'] if extras is not None else None
 
     interface = VectorizerInterface(model, args.simple_templates, args.lr, args.max_stroke, args.canvas_size,
-                                    args.chamfer, args.n_samples_per_curve, args.w_surface, args.w_template,
+                                    args.chamfer, args.n_samples_per_curve, args.w_surface, args.w_template,args.w_curve,
                                     args.w_alignment, cuda=args.cuda)
 
     keys = ['loss', 'chamferloss', 'templateloss'] if args.chamfer \
@@ -67,6 +67,7 @@ if __name__ == '__main__':
     parser = ttools.BasicArgumentParser()
     parser.add_argument("--w_surface", type=float, default=1)
     parser.add_argument("--w_alignment", type=float, default=0.01)
+    parser.add_argument("--w_curve", type=float, default=0.1)
     parser.add_argument("--w_template", type=float, default=10)
     parser.add_argument("--eps", type=float, default=0.04)
     parser.add_argument("--max_stroke", type=float, default=0.04)

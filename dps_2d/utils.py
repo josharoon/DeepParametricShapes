@@ -162,7 +162,7 @@ def compute_alignment_fields(distance_fields):
 
 def compute_occupancy_fields(distance_fields, eps=(2/224)**2):
     """Compute smooth occupancy fields from distance fields."""
-    # distance_fields/=8
+    # distance_fields=distance_fields**2
     # eps=eps*(224)
     occupancy_fields = 1 - th.clamp(distance_fields / eps, 0, 1)
     return occupancy_fields**2 * (3 - 2*occupancy_fields)
@@ -204,6 +204,52 @@ def sample_points_from_curves(curves, n_loops, topology, n_samples_per_curve):
         all_points = th.cat([all_points, padded_points], dim=1)
 
     return all_points
+
+
+def compute_curve_loss(points1, points2, nCoords=2):
+    batchSize, npoints, _ = points1.shape
+    assert points1.shape == points2.shape
+
+    # Create a tensor that contains all rotations of points2
+    points2_rotations = torch.stack([torch.roll(points2.view(batchSize, -1, 2), shifts=i, dims=1) for i in range(npoints)], dim=2)  # shape: (batchSize, npoints, npoints, nCoords)
+
+    # Extend points1 to match the dimensions of points2_rotations
+    points1 = points1.unsqueeze(2)  # add an extra dimension
+    points1 = points1.expand(-1, -1, npoints, -1)  # expand the new dimension
+
+    # Compute the L1 norm for each pair of points
+    L1Norms = torch.abs(points1 - points2_rotations).sum(dim=-1)  # shape: (batchSize, npoints, npoints)
+
+    # Sum over the last dimension (i.e., over all points in each shape) and find the minimum over all rotations
+    minNorm = torch.min(L1Norms.sum(dim=-1), dim=-1)[0]  # shape: (batchSize)
+
+    # Average over the batch
+    loss = minNorm.mean()
+
+    return loss
+
+
+
+
+def loop_curve_loss(K, nCoords, shape1, shape2):
+    sumNorm = 0
+    # tensor of zeros shape (K,2)
+    Norms = torch.zeros(K, nCoords)
+    for jInd in range(K):
+        L1Norm = 0
+        for iInd in range(K):
+            p2i = (iInd + jInd) % K
+            # print(f"j={jInd}, i={iInd}, p2Index={p2i}")
+            L1Norm += abs((shape1[iInd] - shape2[p2i]))
+            # print(f"L1Norm = {L1Norm}")
+        Norms[jInd] = L1Norm
+    # print(f"Norms = {Norms}")
+    # sum the x and y components of the norms then grab the minimum
+    sumNorm = torch.sum(Norms, axis=1)
+    # print(f"sumNorm = {sumNorm}")
+    minNorm = torch.min(sumNorm)
+    # print(f"minNorm = {minNorm}")
+    return minNorm
 
 
 def compute_chamfer_distance(a, b):

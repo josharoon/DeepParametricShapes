@@ -12,7 +12,7 @@ import ttools
 from simplification.cutil import simplify_coords
 import pyGutils.viz
 import utils
-from dps_2d import templates
+from dps_2d import  templates
 #from dps_2d.models import CurvesModel
 from dps_2d.models_3chan import CurvesModel
 from dps_2d.viz import draw_curves
@@ -47,9 +47,9 @@ def main(args):
         #     device)
 
         # o is the index of 'p' or pupil in n_loops eye. 1 is the instrument 2 is both
-        z = th.zeros(len(string.ascii_uppercase)).scatter_(0,
-                                                           th.tensor(5), 1).to(
-            device)
+        loops = 1
+        z = th.zeros(len(string.ascii_uppercase)).scatter_(0
+                                                           , th.tensor(loops), 1).to(device)
 
 
         print(f"Processing image {img_path} (letter {args.letter})")
@@ -81,7 +81,7 @@ def main(args):
         ctx.set_source_surface(im)
         ctx.paint()
         ctx.restore()
-        draw_curves(curves, templates.n_loops_eye[args.letter], ctx)
+        draw_curves(curves, loops, ctx)
         surface.write_to_png(output_path)
         os.remove(scaled_image_path)
         print(f"Output saved to {output_path}")
@@ -96,12 +96,12 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     #parser.add_argument("--input_folder", type=str, default=r"D:\pyG\data\points\transform_test")
-    parser.add_argument("--input_folder", type=str, default=r"D:\DeepParametricShapes\testImages\PreppedSequences\testSeq")
+    parser.add_argument("--input_folder", type=str, default=r"D:\ThesisData\testImages\PreppedSequences\testSeq")
     parser.add_argument("--file_pattern", type=str, default="{name}.*.png")
 
     parser.add_argument("--skip", type=int, default=0)
     parser.add_argument("--letter", type=str, default="C", metavar="LETTER")
-    parser.add_argument("--out", type=str, default=r"D:\DeepParametricShapes\testOuts", metavar="OUTPUT")
+    parser.add_argument("--out", type=str, default=r"D:\ThesisData\testOuts", metavar="OUTPUT")
     parser.add_argument("--model", type=str, default="eye_surgery")
     parser.add_argument("--cuda", dest='cuda', action='store_true')
     parser.add_argument("--no_cuda", dest='cuda', action='store_false')
