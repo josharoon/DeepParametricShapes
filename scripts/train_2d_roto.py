@@ -104,8 +104,8 @@ def main(args):
 
 
     interface = VectorizerInterface(model, args.simple_templates, args.lr, args.max_stroke, args.canvas_size,
-                                    args.chamfer, args.n_samples_per_curve, args.w_surface, args.w_template,args.w_curve,
-                                    args.w_alignment,args.w_chamfer,  cuda=args.cuda, dataset=args.dataset_type
+                                    args.chamfer, args.n_samples_per_curve, args.w_surface, args.w_template,
+                                    args.w_alignment,args.w_chamfer,args.w_curve,  cuda=args.cuda, dataset=args.dataset_type
                                     ,templates_topology=topology)
 
 
@@ -161,9 +161,9 @@ def main(args):
 if __name__ == '__main__':
     parser = ttools.BasicArgumentParser()
     parser.add_argument("--w_surface", type=float, default=1)
-    parser.add_argument("--w_alignment", type=float, default=0.1)
-    parser.add_argument("--w_template", type=float, default=20)#10
-    parser.add_argument("--w_chamfer", type=float, default=0.00)
+    parser.add_argument("--w_alignment", type=float, default=0.01)
+    parser.add_argument("--w_template", type=float, default=10)#10
+    parser.add_argument("--w_chamfer", type=float, default=0.01)
     parser.add_argument("--w_curve", type=float, default=0)
     parser.add_argument("--eps", type=float, default=0.04)
     parser.add_argument("--max_stroke", type=float, default=0.04)
@@ -185,7 +185,7 @@ if __name__ == '__main__':
     parser.add_argument("--resnet_depth", type=int,choices=[18, 34, 50, 101, 152], default=18, help="ResNet depth")
     parser.add_argument("--start_epoch", type=int, default=None)
     parser.add_argument("--template_idx", type=int, default=0)
-    parser.add_argument("--im_fr_main_root", type=bool, default=False)
+    parser.add_argument("--im_fr_main_root", type=bool, default=True)
     parser.add_argument("--loops", type=int, default=1)
 
     parser.set_defaults(num_worker_threads=0, bs=4, lr=1e-4)

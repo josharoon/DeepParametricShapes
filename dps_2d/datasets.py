@@ -248,6 +248,7 @@ class esDataset(th.utils.data.Dataset):
         if self.use_png: #png indices start from 0 instead of 1 so subtract 1
             fname = f"spoints.{str(int(self.filesIndicies[idx])).zfill(4)}.png"
             if self.im_fr_main_root:
+                fname = f"spoints.{str(int(self.filesIndicies[idx])-1).zfill(4)}.png"
                 im_path = os.path.join("\\".join((self.root.split("\\")[:-1])), fname)
             else:
                 im_path = os.path.join(self.png_root, fname)

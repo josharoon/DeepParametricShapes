@@ -25,6 +25,7 @@ class VectorizerInterface(ModelInterface):
         self.cuda = cuda
         self._step = 0
         self.topology= templates_topology
+        self.templates_ = templates.eye_templates2
 
         # self.curve_templates = th.Tensor(templates.simple_templates if self.simple_templates
         #         else templates.letter_templates)
@@ -34,7 +35,8 @@ class VectorizerInterface(ModelInterface):
             if dataset=="fonts":
                 self.curve_templates = th.Tensor(templates.letter_templates)
             else:
-                self.curve_templates = th.Tensor(templates.eye_templates)
+
+                self.curve_templates = th.Tensor(self.templates_)
 
 
         if self.cuda:

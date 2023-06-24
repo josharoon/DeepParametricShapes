@@ -206,10 +206,39 @@ def sample_points_from_curves(curves, n_loops, topology, n_samples_per_curve):
     return all_points
 
 
-def compute_curve_loss(points1, points2, nCoords=2):
+def compute_curve_loss_old2(points1, points2):
+    batchSize, npoints, _ = points1.shape
+    assert points1.shape == points2.shape
+    points2_rotations = torch.cat([torch.roll(points2.view(batchSize, -1, 2), shifts=i, dims=1) for i in range(npoints)], dim=1)
+    points1 = points1.repeat_interleave(npoints, dim=1)
+    points = torch.abs(points1 - points2_rotations).sum(-1)
+    l1Norms=torch.linalg.norm(points,dim=1, ord=1)
+    minNorm = torch.min(l1Norms)
+    return minNorm
+
+
+def compute_curve_loss(points1, points2):
     batchSize, npoints, _ = points1.shape
     assert points1.shape == points2.shape
 
+    min_loss = torch.tensor(float('inf')).to(points1.device)
+    for j in range(npoints):
+        # Shift points2 by j
+        points2_shifted = torch.roll(points2, shifts=j, dims=1)
+
+        # Calculate L1 norm and sum for each sample in the batch
+        l1_norm = torch.sum(torch.abs(points1 - points2_shifted), dim=-1)
+        batch_loss = torch.sum(l1_norm, dim=-1)
+
+        # Keep the minimum loss across all shifts
+        min_loss = torch.min(min_loss, batch_loss)
+
+    return min_loss.mean()
+
+
+def compute_curve_loss_old(points1, points2):
+    batchSize, npoints, _ = points1.shape
+    assert points1.shape == points2.shape
     # Create a tensor that contains all rotations of points2
     points2_rotations = torch.stack([torch.roll(points2.view(batchSize, -1, 2), shifts=i, dims=1) for i in range(npoints)], dim=2)  # shape: (batchSize, npoints, npoints, nCoords)
 
@@ -230,26 +259,6 @@ def compute_curve_loss(points1, points2, nCoords=2):
 
 
 
-
-def loop_curve_loss(K, nCoords, shape1, shape2):
-    sumNorm = 0
-    # tensor of zeros shape (K,2)
-    Norms = torch.zeros(K, nCoords)
-    for jInd in range(K):
-        L1Norm = 0
-        for iInd in range(K):
-            p2i = (iInd + jInd) % K
-            # print(f"j={jInd}, i={iInd}, p2Index={p2i}")
-            L1Norm += abs((shape1[iInd] - shape2[p2i]))
-            # print(f"L1Norm = {L1Norm}")
-        Norms[jInd] = L1Norm
-    # print(f"Norms = {Norms}")
-    # sum the x and y components of the norms then grab the minimum
-    sumNorm = torch.sum(Norms, axis=1)
-    # print(f"sumNorm = {sumNorm}")
-    minNorm = torch.min(sumNorm)
-    # print(f"minNorm = {minNorm}")
-    return minNorm
 
 
 def compute_chamfer_distance(a, b):
