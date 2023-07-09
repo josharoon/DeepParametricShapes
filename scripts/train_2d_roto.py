@@ -72,6 +72,9 @@ def main(args):
         "batch_size": args.bs,
         "architecture": args.architectures,
         "resnet_depth": args.resnet_depth,
+        "args.png_dir": args.png_dir,
+        "args.im_fr_main_root": args.im_fr_main_root,
+        "args.template_idx": args.template_idx,
 
     }
     hyperparams =hparams (hparamsDict, {"loss": 0,"templateloss":0,"chamferloss":0,"surfaceloss":0,"alignmentloss":0,"curve":0})
@@ -124,6 +127,10 @@ def main(args):
     writer = SummaryWriter(os.path.join(args.checkpoint_dir, 'summaries',
                                         train_run_name), flush_secs=1)
 
+    #create torch zeros of batch size*3*canvas_size*canvas_size
+    imageZeros=th.zeros(args.bs,3,args.canvas_size,args.canvas_size).cuda()
+    conditionZeros=th.zeros(args.bs,26).cuda()
+    writer.add_graph(model, (imageZeros,conditionZeros),use_strict_trace=False)
     #writer.add_hparams(hparams, {}, run_name=train_run_name+"-hparams")
 
     val_writer = SummaryWriter(os.path.join(args.checkpoint_dir, 'summaries',

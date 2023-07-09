@@ -217,6 +217,9 @@ def compute_curve_loss_old2(points1, points2):
     return minNorm
 
 
+
+
+
 def compute_curve_loss(points1, points2):
     batchSize, npoints, _ = points1.shape
     assert points1.shape == points2.shape
@@ -233,29 +236,7 @@ def compute_curve_loss(points1, points2):
         # Keep the minimum loss across all shifts
         min_loss = torch.min(min_loss, batch_loss)
 
-    return min_loss.mean()
-
-
-def compute_curve_loss_old(points1, points2):
-    batchSize, npoints, _ = points1.shape
-    assert points1.shape == points2.shape
-    # Create a tensor that contains all rotations of points2
-    points2_rotations = torch.stack([torch.roll(points2.view(batchSize, -1, 2), shifts=i, dims=1) for i in range(npoints)], dim=2)  # shape: (batchSize, npoints, npoints, nCoords)
-
-    # Extend points1 to match the dimensions of points2_rotations
-    points1 = points1.unsqueeze(2)  # add an extra dimension
-    points1 = points1.expand(-1, -1, npoints, -1)  # expand the new dimension
-
-    # Compute the L1 norm for each pair of points
-    L1Norms = torch.abs(points1 - points2_rotations).sum(dim=-1)  # shape: (batchSize, npoints, npoints)
-
-    # Sum over the last dimension (i.e., over all points in each shape) and find the minimum over all rotations
-    minNorm = torch.min(L1Norms.sum(dim=-1), dim=-1)[0]  # shape: (batchSize)
-
-    # Average over the batch
-    loss = minNorm.mean()
-
-    return loss
+    return (min_loss / npoints).mean()
 
 
 

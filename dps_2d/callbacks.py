@@ -163,15 +163,6 @@ class HyperparamLoggingCallback(cb.TensorBoardLoggingCallback):
         self.hparams = hparams or {}
         self.metrics = {k: 0 for k in (keys or []) + (val_keys or [])}
 
-    # def validation_end(self, val_data):
-    #     super().validation_end(val_data)
-    #     for k in self.val_keys:
-    #         if self.summary_type == 'scalar':
-    #             if type(val_data[k]) == float:
-    #                 self.metrics[k] = val_data[k]
-    #     self._writer.add_hparams(self.hparams, self.metrics, run_name=f'val_step')
-    #
-    #
     def validation_end(self, val_data):
         super(HyperparamLoggingCallback, self).validation_end(val_data)
         t = self.datasize * (self.epoch+1)
@@ -181,6 +172,3 @@ class HyperparamLoggingCallback(cb.TensorBoardLoggingCallback):
                     self._val_writer.add_scalar(k, val_data[k], global_step=t)
 
 
-
-    # def training_end(self):
-    #     self._writer.add_hparams(self.hparams, self.metrics, run_name=f'hparams_end')
