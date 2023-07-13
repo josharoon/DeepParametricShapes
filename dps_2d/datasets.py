@@ -228,8 +228,6 @@ class esDataset(th.utils.data.Dataset):
         return len(self.files)
 
     def sortFiles(self):
-        #grab the number before the pt e.g distance_field.00001.pt => 1 there will be duplicate numbers so produce a set
-        #then sort the set and return the sorted list
         #get all files in the directory ending with pt
         files = [f for f in os.listdir(self.root) if f.endswith('.pt')]
         #remove any files that dont start with distance_field or spoints
@@ -851,11 +849,11 @@ if __name__ == '__main__':
     #
     RotoshapesRoot= r"D:\ThesisData\data\points\rotoshapes"
     root2=r"D:\ThesisData\fonts"
-    eyeSurgeryRoot= r"D:\ThesisData\data\points\transform_test"
-    # dataset1=RotoDataset(root=root3,chamfer=False,n_samples_per_curve=100,val=False)
+    eyeSurgeryRoot= r"D:\\ThesisData\\data\\points\\transform_test\\processed"
+    # dataset1=RotoDataset(root=eyeSurgeryRoot,chamfer=False,n_samples_per_curve=100,val=False)
     # dataset2=FontsDataset(root=root2,chamfer=True,n_samples_per_curve=100,val=False)
     #dataset2=esDataset(root=root3,chamfer=False,n_samples_per_curve=100,val=False,use_png=True,png_root=r"D:\ThesisData\data\points\transform_test\combMatte")
-    # dataset3=esDataset(root=root3,chamfer=False,n_samples_per_curve=100,val=True,template_idx=1,use_png=True,  png_root=r"D:\ThesisData\data\points\transform_test\instrumentMatte", im_fr_main_root=True)
+    dataset3=esDataset(root=eyeSurgeryRoot,chamfer=False,n_samples_per_curve=100,val=False,template_idx=1,use_png=True,  png_root=r"D:\ThesisData\data\points\transform_test\pupilMatte", im_fr_main_root=True)
     # # # # #
     #
     # for i in range(0,len(dataset3)):
@@ -880,10 +878,10 @@ if __name__ == '__main__':
     # image_shape2 = data2['im'].cpu().numpy().shape[1:3]  # (height, width)
     # scaled_points2 = data2points * np.array(image_shape2)[::-1]  # multiply by (width, height)
     #
-    # data3=dataset3[10]
+    data3=dataset3[100]
     # data3points=data3['points']
     # data3occupancy=data3['occupancy_fields']
-    # data3Alignment=data3['alignment_fields']
+    data3Alignment=data3['alignment_fields']
     # image_shape3 = data3['im'].cpu().numpy().shape[1:3]  # (height, width)
     # scaled_points3 = data3points * np.array(image_shape3)[::-1]  # multiply by (width, height)
     #
@@ -913,17 +911,17 @@ if __name__ == '__main__':
     # # axs[3,0].imshow(blend_im.numpy().transpose(1,2,0))
     # plt.show()
     # #
-    # visualize_vector_field(data3Alignment,scale=0.0000001,subsample=2)
+    visualize_vector_field(data3Alignment,scale=0.0001,subsample=6)
     # visualize_vector_field(dataAlignment,scale=0.0000001,subsample=2)
     #
     # processFields=MultiFieldProcess(root=r"D:\ThesisData\data\points\transform_test",
     #                                  labelsFiles=["pointstransform_test_instruments.json","pointstransform_test_pupil.json"])
 
-    delFilesbyExtention(os.path.join(eyeSurgeryRoot, "instrumentMatte/processed"), ext="pt")
-    processFields=MultiFieldProcess(root=r"D:\ThesisData\data\points\transform_test",
-                                     labelsFiles=["pointstransform_test_instruments.json"],proc_path="instrumentMatte/processed")
-
-    processFields.process()
+    # delFilesbyExtention(os.path.join(eyeSurgeryRoot, "instrumentMatte/processed"), ext="pt")
+    # processFields=MultiFieldProcess(root=r"D:\ThesisData\data\points\transform_test",
+    #                                  labelsFiles=["pointstransform_test_instruments.json"],proc_path="instrumentMatte/processed")
+    #
+    # processFields.process()
 
     # processFields=MultiFieldProcess(root=RotoshapesRoot,
     #                                  labelsFiles=["points120423_183451_rev.json"],proc_path="processed")
