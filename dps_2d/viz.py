@@ -277,6 +277,21 @@ def draw_glyph(font, char, ctx, offset=(0, 0), color=(0.6, 0.6, 0.6)):
                              bpoints[3].real + x, bpoints[3].imag + y)
     ctx.fill()
 
+# def draw_curves_mask(curves, n_loops, ctx, offset=(0, 0)):
+#     x, y = offset
+#     curves = th.cat(utils.unroll_curves(curves[None], templates.topology), dim=1).squeeze(0)
+#     curves = curves[:sum(templates.topology[:n_loops])]
+#
+#     ctx.set_line_width(0.04)
+#     ctx.set_source_rgb(1, 1, 1)  # Set the curve color to white
+#     for i in range(len(curves)):
+#         a, b, c = list(curves[i])
+#         ctx.move_to(a[0] + x, a[1] + y)
+#         ctx.curve_to(a[0] * 1/3 + b[0] * 2/3 + x, a[1] * 1/3 + b[1] * 2/3 + y,
+#                      b[0] * 2/3 + c[0] * 1/3 + x, b[1] * 2/3 + c[1] * 1/3 + y,
+#                      c[0] + x, c[1] + y)
+#         ctx.fill()  # Fill the curve
+
 def draw_curves_mask(curves, n_loops, ctx, offset=(0, 0)):
     x, y = offset
     curves = th.cat(utils.unroll_curves(curves[None], templates.topology), dim=1).squeeze(0)
@@ -284,10 +299,14 @@ def draw_curves_mask(curves, n_loops, ctx, offset=(0, 0)):
 
     ctx.set_line_width(0.04)
     ctx.set_source_rgb(1, 1, 1)  # Set the curve color to white
+    ctx.new_path()  # Start a new path for the entire shape
+
     for i in range(len(curves)):
         a, b, c = list(curves[i])
-        ctx.move_to(a[0] + x, a[1] + y)
+        ctx.move_to(a[0] + x, a[1] + y) if i == 0 else ctx.line_to(a[0] + x, a[1] + y) # Only move_to on first curve
         ctx.curve_to(a[0] * 1/3 + b[0] * 2/3 + x, a[1] * 1/3 + b[1] * 2/3 + y,
                      b[0] * 2/3 + c[0] * 1/3 + x, b[1] * 2/3 + c[1] * 1/3 + y,
                      c[0] + x, c[1] + y)
-        ctx.fill()  # Fill the curve
+
+    ctx.close_path()  # Close the path
+    ctx.fill()
