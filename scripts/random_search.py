@@ -67,7 +67,7 @@ if os.path.exists(predefined_hyperparameters_path):
 
 def run_train(i, w_surface, w_alignment, w_template, lr, w_chamfer, w_curve, architecture, depth,
               png_dir, template_idx, im_fr_main_root,
-              dataset_type, num_epochs,pth_file_path):
+              dataset_type, num_epochs,pth_file_path,loops):
 
 
 
@@ -103,7 +103,7 @@ def run_train(i, w_surface, w_alignment, w_template, lr, w_chamfer, w_curve, arc
                               resnet_depth=depth,
                               im_fr_main_root=im_fr_main_root,
                               start_epoch=None,
-                              loops=1)
+                              loops=loops)
     if pth_file_path:
         shutil.copy(pth_file_path, TRAINING_PATH)
     # Call the training function with the generated hyperparameters
@@ -128,7 +128,7 @@ if predefined_hyperparameters:
         hyperparameters = predefined_hyperparameters[i]
         if hyperparameters["ran"]==False:
             run_train(i, hyperparameters["w_surface"], hyperparameters["w_alignment"], hyperparameters["w_template"], hyperparameters["lr"], hyperparameters["w_chamfer"], hyperparameters["w_curve"], hyperparameters["architecture"], hyperparameters["depth"],hyperparameters["png_dir"], hyperparameters["template_idx"], hyperparameters["im_fr_main_root"],
-                  hyperparameters["dataset_type"], hyperparameters["num_epochs"],hyperparameters["pth_file_path"])
+                  hyperparameters["dataset_type"], hyperparameters["num_epochs"],hyperparameters["pth_file_path"],hyperparameters["loops"])
         else:
             print(f"Skipping predefined hyperparameters {i} because they were already used")
         # Mark the hyperparameters as used

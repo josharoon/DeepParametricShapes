@@ -10,7 +10,7 @@ import ttools
 
 from dps_2d import callbacks, datasets, templates
 from dps_2d.interfaces import VectorizerInterface
-from dps_2d.models_3chan import CurvesModel,CurvesModelCubic
+from dps_2d.models_3chan import CurvesModel
 
 
 LOG = logging.getLogger(__name__)

@@ -3,7 +3,6 @@ from freetype import *
 import numpy as np
 import torch as th
 from svgpathtools import Line, Path, QuadraticBezier, CubicBezier, paths2svg
-from pyGutils.viz import plotCubicSpline
 
 from . import templates, utils
 

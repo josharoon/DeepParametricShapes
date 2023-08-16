@@ -114,7 +114,7 @@ def plotQuadraticSplineGrid(control_points, title='Quadratic Bezier Spline from 
 
 
 
-from utils import compute_alignment_fields
+from dps_2d.utils import compute_alignment_fields
 
 def visualize_vector_field(alignment_fields,diffField=False,scale=1,subsample=5):
 

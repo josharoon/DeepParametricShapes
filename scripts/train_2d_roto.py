@@ -13,7 +13,7 @@ from dps_2d import callbacks, datasets, templates
 from dps_2d.interfaces import VectorizerInterface
 from dps_2d.models_3chan import CurvesModel
 from dps_2d.models import CurvesModel as FontCurvesModel
-from templates import topology
+from dps_2d.templates import topology
 
 LOG = logging.getLogger(__name__)
 
@@ -169,7 +169,7 @@ if __name__ == '__main__':
     parser = ttools.BasicArgumentParser()
     parser.add_argument("--w_surface", type=float, default=1)
     parser.add_argument("--w_alignment", type=float, default=0.0001)
-    parser.add_argument("--w_template", type=float, default=00)#10
+    parser.add_argument("--w_template", type=float, default=10)#10
     parser.add_argument("--w_chamfer", type=float, default=0.00)
     parser.add_argument("--w_curve", type=float, default=0)
     parser.add_argument("--eps", type=float, default=0.04)
@@ -187,13 +187,13 @@ if __name__ == '__main__':
 
     parser.add_argument("--canvas_size", type=int, default=224)
     # parser.add_argument("--png_dir", type=str, default=None, help="path to the PNG images.")
-    parser.add_argument("--png_dir", type=str, default=r"D:\ThesisData\data\points\transform_test\instrumentMatte", help="path to the PNG images.")
+    parser.add_argument("--png_dir", type=str, default=r"D:\ThesisData\data\points\transform_test", help="path to the PNG images.")
     parser.add_argument("--architectures", type=str, choices=["unet", "resnet"], default="resnet", help="Model architecture")
-    parser.add_argument("--resnet_depth", type=int,choices=[18, 34, 50, 101, 152], default=34, help="ResNet depth")
+    parser.add_argument("--resnet_depth", type=int,choices=[18, 34, 50, 101, 152], default=18, help="ResNet depth")
     parser.add_argument("--start_epoch", type=int, default=None)
-    parser.add_argument("--template_idx", type=int, default=0)
+    parser.add_argument("--template_idx", type=int, default=5)
     parser.add_argument("--im_fr_main_root", type=bool, default=True)
-    parser.add_argument("--loops", type=int, default=1)
+    parser.add_argument("--loops", type=int, default=2)
     parser.set_defaults(num_worker_threads=0, bs=4, lr=1e-4)
     args = parser.parse_args()
     ttools.set_logger(args.debug)

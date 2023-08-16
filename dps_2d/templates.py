@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 
-from pyGutils.viz import plotQuadraticSpline
+# from pyGutils.viz import plotQuadraticSpline
 
 n_loops = {
     'A': 2, 'B': 3, 'C': 1, 'D': 2, 'E': 1, 'F': 1, 'G': 1, 'H': 1, 'I': 1, 'J': 1, 'K': 1, 'L': 1, 'M': 1, 'N': 1,
@@ -202,6 +202,6 @@ if __name__ == '__main__':
     reshaped_control_points = torch.cat((outer_reshaped, inner_reshaped), dim=0)
 
     # Call the modified function to plot the letter 'A'
-    plotQuadraticSpline(reshaped_control_points, title="Letter A")
+    # plotQuadraticSpline(reshaped_control_points, title="Letter A")
 
 

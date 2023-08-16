@@ -28,7 +28,7 @@ from sklearn.model_selection import train_test_split
 from pyGutils.cubicCurvesUtil import convert_to_cubic_control_points, create_grid_points
 from pyGutils.viz import plot_distance_field,plotCubicSpline,visualize_vector_field
 
-import utils, templates
+import dps_2d.utils, dps_2d.templates as templates
 
 
 class point2D:
@@ -87,9 +87,9 @@ class FontsDataset(th.utils.data.Dataset):
         im = Image.open(os.path.join(self.root, 'pngs', fname + '.png')).convert('L')
         distance_fields = th.from_numpy(
                 np.load(os.path.join(self.root, 'distances', fname + '.npy'))[31:-31,31:-31].astype(np.float32)) ** 2
-        alignment_fields = utils.compute_alignment_fields(distance_fields)
+        alignment_fields = dps_2d.utils.compute_alignment_fields(distance_fields)
         distance_fields = distance_fields[1:-1,1:-1]
-        occupancy_fields = utils.compute_occupancy_fields(distance_fields)
+        occupancy_fields = dps_2d.utils.compute_occupancy_fields(distance_fields)
         points = th.Tensor([])
         try:
             points = th.from_numpy(np.load(os.path.join(self.root, 'points', fname + '.npy')).astype(np.float32))
@@ -266,12 +266,12 @@ class esDataset(th.utils.data.Dataset):
 
 
 
-        distance_fields = th.load(os.path.join(self.root, dfname))**2
+        # distance_fields = th.load(os.path.join(self.root, dfname))**2
         distance_fields = th.load(os.path.join(self.png_root+"\\processed\\", dfname))**2
         distance_fields = th.flip(distance_fields, (0,))[55:-55,55:-55] #we introduce a crop to match workflow from DPS
-        alignment_fields = utils.compute_alignment_fields(distance_fields)
+        alignment_fields = dps_2d.utils.compute_alignment_fields(distance_fields)
         distance_fields = distance_fields[1:-1, 1:-1]
-        occupancy_fields = utils.compute_occupancy_fields(distance_fields)
+        occupancy_fields = dps_2d.utils.compute_occupancy_fields(distance_fields)
         points = th.Tensor([])
         if self.pointLoss:
             if not self.use_png:
@@ -351,9 +351,9 @@ class RotoDataset(esDataset):
             pfname = f"sampled_points_{self.filesIndicies[idx]}.npy"
             distance_fields = th.load(os.path.join(self.root, dfname)) ** 2
             distance_fields = th.flip(distance_fields, (0,))[55:-55,55:-55]  # we introduce a crop to match workflow fromPS
-            alignment_fields = utils.compute_alignment_fields(distance_fields)
+            alignment_fields = dps_2d.utils.compute_alignment_fields(distance_fields)
             distance_fields = distance_fields[1:-1, 1:-1]
-            occupancy_fields = utils.compute_occupancy_fields(distance_fields)
+            occupancy_fields = dps_2d.utils.compute_occupancy_fields(distance_fields)
             points = th.Tensor([])
             maxPoints = self.n_samples_per_curve * sum(templates.topology)
             points = th.from_numpy(np.load(os.path.join(self.root, pfname)).astype(np.float32))
@@ -397,11 +397,11 @@ class RotoDataset(esDataset):
 class MultiFieldProcess(Dataset):
 
     def __init__(self, root, labelsFiles=None, transform=None, pre_transform=None, pre_filter=None, preprocess=True,
-                 proc_path=None, grid_expansion_ratio=1.5):
+                 proc_path="processed", grid_expansion_ratio=1.5):
         self.grid_epansion_ratio = grid_expansion_ratio
         self.processed_subpath = proc_path
         self.root=root
-        #self.processed_dir=processed_dir
+        # self.processed_dir=os.path.join(self.root,self.processed_subpath)
         self.labelsFiles=labelsFiles
         self.labels=None
         self.labelsDictList=[]
@@ -754,9 +754,9 @@ class MultiPointProcess(MultiFieldProcess):
 
 
 
-                      sampled_points_list = np.array(sampled_points_list)
-                      sampled_points_list =sampled_points_list.transpose(0,2, 1).reshape(-1,2)
-                      np.save(f'{self.processed_dir}/{self.points_fn}{index + 1:04d}.npy', sampled_points_list)
+        sampled_points_list = np.array(sampled_points_list)
+        sampled_points_list =sampled_points_list.transpose(0,2, 1).reshape(-1,2)
+        np.save(f'{self.processed_dir}/{self.points_fn}{index + 1:04d}.npy', sampled_points_list)
 
     def ensure_continuous(self,curves):
         # The curves parameter is assumed to be a numpy array of shape (n_curves, 3, 2)
@@ -847,13 +847,13 @@ if __name__ == '__main__':
     # processPoints.process()
 
     #
-    RotoshapesRoot= r"D:\ThesisData\data\points\rotoshapes"
-    root2=r"D:\ThesisData\fonts"
-    eyeSurgeryRoot= r"D:\\ThesisData\\data\\points\\transform_test\\processed"
+    # RotoshapesRoot= r"D:\ThesisData\data\points\rotoshapes"
+    # root2=r"D:\ThesisData\fonts"
+    # eyeSurgeryRoot= r"D:\\ThesisData\\data\\points\\transform_test\\processed"
     # dataset1=RotoDataset(root=eyeSurgeryRoot,chamfer=False,n_samples_per_curve=100,val=False)
     # dataset2=FontsDataset(root=root2,chamfer=True,n_samples_per_curve=100,val=False)
     #dataset2=esDataset(root=root3,chamfer=False,n_samples_per_curve=100,val=False,use_png=True,png_root=r"D:\ThesisData\data\points\transform_test\combMatte")
-    dataset3=esDataset(root=eyeSurgeryRoot,chamfer=False,n_samples_per_curve=100,val=False,template_idx=1,use_png=True,  png_root=r"D:\ThesisData\data\points\transform_test\pupilMatte", im_fr_main_root=True)
+    # dataset3=esDataset(root=eyeSurgeryRoot,chamfer=False,n_samples_per_curve=100,val=False,template_idx=1,use_png=True,  png_root=r"D:\ThesisData\data\points\transform_test\pupilMatte", im_fr_main_root=True)
     # # # # #
     #
     # for i in range(0,len(dataset3)):
@@ -878,10 +878,10 @@ if __name__ == '__main__':
     # image_shape2 = data2['im'].cpu().numpy().shape[1:3]  # (height, width)
     # scaled_points2 = data2points * np.array(image_shape2)[::-1]  # multiply by (width, height)
     #
-    data3=dataset3[100]
+    # data3=dataset3[100]
     # data3points=data3['points']
     # data3occupancy=data3['occupancy_fields']
-    data3Alignment=data3['alignment_fields']
+    # data3Alignment=data3['alignment_fields']
     # image_shape3 = data3['im'].cpu().numpy().shape[1:3]  # (height, width)
     # scaled_points3 = data3points * np.array(image_shape3)[::-1]  # multiply by (width, height)
     #
@@ -911,7 +911,7 @@ if __name__ == '__main__':
     # # axs[3,0].imshow(blend_im.numpy().transpose(1,2,0))
     # plt.show()
     # #
-    visualize_vector_field(data3Alignment,scale=0.0001,subsample=6)
+    # visualize_vector_field(data3Alignment,scale=0.0001,subsample=6)
     # visualize_vector_field(dataAlignment,scale=0.0000001,subsample=2)
     #
     # processFields=MultiFieldProcess(root=r"D:\ThesisData\data\points\transform_test",
@@ -931,9 +931,9 @@ if __name__ == '__main__':
     # distFieldsToPngSeq(r"D:\ThesisData\data\points\transform_test\instrumentMatte\processed_ylimit_test")
     # delFilesbyExtention(r"D:\ThesisData\data\points\transform_test\instrumentMatte\processed")
     # delFilesbyExtention(os.path.join(RotoshapesRoot,"process"), ext="npy",name="sampled_points")
-    # processPoints=MultiPointProcess(root=RotoshapesRoot,
-    #                                  labelsFiles=["points120423_183451_rev.json"],proc_path="processed",width=224,height=224)
-    # processPoints.process()
+    processPoints=MultiPointProcess(root=r"D:\ThesisData\data\points\transform_test",
+                                     labelsFiles=["pointstransform_test_instruments.json","pointstransform_test_pupil.json"],proc_path="processed",width=224,height=224)
+    processPoints.process()
 
 
     # copyFilesbyExtension(r"D:\ThesisData\data\points\transform_test\instrumentMatte\tmp",r"D:\ThesisData\data\points\transform_test\instrumentMatte\processed",ext="npy",move=True)

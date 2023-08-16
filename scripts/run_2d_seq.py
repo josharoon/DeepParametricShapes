@@ -11,7 +11,7 @@ import torch as th
 import ttools
 from simplification.cutil import simplify_coords
 import pyGutils.viz
-import utils
+import dps_2d.utils as utils
 from dps_2d import  templates
 #from dps_2d.models import CurvesModel
 from dps_2d.models_3chan import CurvesModel
@@ -23,7 +23,7 @@ from dps_2d.viz import draw_curves, draw_curves_mask
 def main(args):
     device = "cuda" if th.cuda.is_available() and args.cuda else "cpu"
 
-    model = CurvesModel(sum(templates.topology))
+    model = CurvesModel(sum(templates.topology),depth=args.depth)
 
     model.to(device)
     model.eval()
@@ -34,7 +34,7 @@ def main(args):
     else:
         print("Unable to load checkpoint")
 
-    input_files = sorted(glob.glob(os.path.join(args.input_folder, args.file_pattern.format(name="testSeq_v01"))))
+    input_files = sorted(glob.glob(os.path.join(args.input_folder, args.file_pattern.format(name="test"))))
 
 
     if args.skip > 0:
@@ -110,15 +110,16 @@ def render_image_mask(args, curves, img_path, n_loops):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input_folder", type=str, default=r"D:\ThesisData\testImages\PreppedSequences\testSeq_v01")
+    parser.add_argument("--input_folder", type=str, default=r"D:\ThesisData\testset\pupil")
     parser.add_argument("--file_pattern", type=str, default="{name}.*.png")
     parser.add_argument("--n_loops", type=int, default=1)
     parser.add_argument("--skip", type=int, default=0)
     parser.add_argument("--template_idx", type=int, default=0)
-    parser.add_argument("--out", type=str, default=r"D:\ThesisData\demo\instrument2", metavar="OUTPUT")
-    parser.add_argument("--cuda", dest='cuda', action='store_true')
+    parser.add_argument("--out", type=str, default=r"D:\ThesisData\demo\res34_instrument", metavar="OUTPUT")
+    parser.add_argument("--cuda", dest='cuda', default=True,action='store_true')
     parser.add_argument("--no_cuda", dest='cuda', action='store_false')
-    parser.add_argument("--checkpoint_path", type=str, default=r"D:\DeepParametricShapes\scripts\checkpoints\training_end_w_surface_1.000_w_alignment_0.000_w_template_10.000_architecture_resnet_date_2023-07-05_08-56-30_resnet_depth_18_lr_0.001")
+    parser.add_argument("--checkpoint_path", type=str, default=r"D:\ThesisData\demo\chkpt")
+    parser.add_argument("--depth", type=int, default=18)
     parser.set_defaults(cuda=True)
     args = parser.parse_args()
     main(args)
